@@ -11,163 +11,57 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#0B0F14;
-    --panel:#121821;
-    --panel-2:#161d28;
-    --line:#232b38;
-    --amber:#E8A33D;
-    --cyan:#4FD1C5;
-    --red:#E8543D;
-    --text:#E7ECF2;
-    --text-dim:#8590A0;
+    --bg:#0B0F14; --panel:#121821; --panel-2:#161d28; --line:#232b38;
+    --amber:#E8A33D; --cyan:#4FD1C5; --red:#E8543D;
+    --text:#E7ECF2; --text-dim:#8590A0;
   }
   *{box-sizing:border-box;}
-  body{
-    margin:0;
-    background:var(--bg);
-    color:var(--text);
-    font-family:'Inter',sans-serif;
-    -webkit-font-smoothing:antialiased;
-    padding-bottom:64px;
-  }
-  h1,h2,.display{font-family:'Space Grotesk',sans-serif;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;padding-bottom:64px;}
+  h1,h2{font-family:'Space Grotesk',sans-serif;}
   .mono{font-family:'IBM Plex Mono',monospace;}
-
-  header{
-    padding:28px 20px 20px;
-    border-bottom:1px solid var(--line);
-  }
-  header .eyebrow{
-    color:var(--amber);
-    font-size:12px;
-    letter-spacing:0.14em;
-    text-transform:uppercase;
-    font-family:'IBM Plex Mono',monospace;
-  }
-  header h1{
-    font-size:28px;
-    margin:6px 0 0;
-    font-weight:700;
-  }
-
-  /* Board di stato in stile tabellone partenze aeroportuali */
-  .board{
-    margin:20px;
-    background:var(--panel);
-    border:1px solid var(--line);
-    border-radius:10px;
-    overflow:hidden;
-  }
-  .board-row{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    padding:14px 18px;
-    border-bottom:1px solid var(--line);
-  }
+  header{padding:28px 20px 20px;border-bottom:1px solid var(--line);}
+  header .eyebrow{color:var(--amber);font-size:12px;letter-spacing:0.14em;text-transform:uppercase;font-family:'IBM Plex Mono',monospace;}
+  header h1{font-size:28px;margin:6px 0 0;font-weight:700;}
+  .board{margin:20px;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+  .board-row{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);}
   .board-row:last-child{border-bottom:none;}
-  .board-label{
-    color:var(--text-dim);
-    font-size:13px;
-  }
-  .board-value{
-    font-family:'IBM Plex Mono',monospace;
-    font-size:15px;
-    color:var(--cyan);
-    letter-spacing:0.02em;
-  }
+  .board-label{color:var(--text-dim);font-size:13px;}
+  .board-value{font-family:'IBM Plex Mono',monospace;font-size:15px;color:var(--cyan);letter-spacing:0.02em;}
   .board-value.amber{color:var(--amber);}
-  .status-pill{
-    display:inline-flex;
-    align-items:center;
-    gap:6px;
-    font-family:'IBM Plex Mono',monospace;
-    font-size:12px;
-    padding:4px 10px;
-    border-radius:999px;
-  }
+  .status-pill{display:inline-flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:12px;padding:4px 10px;border-radius:999px;}
   .status-pill.active{background:rgba(79,209,197,0.12);color:var(--cyan);}
   .status-pill.stopped{background:rgba(232,84,61,0.12);color:var(--red);}
   .dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
-
   section{margin:28px 20px;}
-  section h2{
-    font-size:15px;
-    text-transform:uppercase;
-    letter-spacing:0.08em;
-    color:var(--text-dim);
-    margin-bottom:12px;
-    font-weight:500;
-  }
-
-  .card{
-    background:var(--panel);
-    border:1px solid var(--line);
-    border-radius:10px;
-    padding:18px;
-  }
+  section h2{font-size:15px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:12px;font-weight:500;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;}
   .field{margin-bottom:16px;}
   .field:last-child{margin-bottom:0;}
-  label{
-    display:block;
-    font-size:13px;
-    color:var(--text-dim);
-    margin-bottom:6px;
-  }
+  label{display:block;font-size:13px;color:var(--text-dim);margin-bottom:6px;}
   input[type=text], input[type=email], input[type=date], input[type=time], input[type=number]{
-    width:100%;
-    background:var(--panel-2);
-    border:1px solid var(--line);
-    color:var(--text);
-    padding:11px 12px;
-    border-radius:7px;
-    font-family:'IBM Plex Mono',monospace;
-    font-size:14px;
+    width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:11px 12px;border-radius:7px;font-family:'IBM Plex Mono',monospace;font-size:14px;
   }
   input:focus{outline:2px solid var(--cyan);outline-offset:1px;}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
   .hint{font-size:12px;color:var(--text-dim);margin-top:5px;}
-
-  .btn{
-    width:100%;
-    padding:14px;
-    border-radius:8px;
-    border:none;
-    font-family:'Space Grotesk',sans-serif;
-    font-weight:700;
-    font-size:15px;
-    cursor:pointer;
-  }
+  .btn{width:100%;padding:14px;border-radius:8px;border:none;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;cursor:pointer;}
   .btn-primary{background:var(--cyan);color:#04211E;}
-  .btn-stop{
-    background:transparent;
-    border:1.5px solid var(--red);
-    color:var(--red);
-  }
-  .btn-stop.is-stopped{background:var(--red);color:#fff;}
   .btn-secondary{background:var(--panel-2);border:1px solid var(--line);color:var(--text);}
-
-  .killswitch{
-    margin:28px 20px;
-    padding:18px;
-    border:1px solid var(--line);
-    border-radius:10px;
-    background:var(--panel);
-    text-align:center;
-  }
+  .btn-secondary:disabled{opacity:0.5;}
+  .btn-stop{background:transparent;border:1.5px solid var(--red);color:var(--red);}
+  .btn-stop.is-stopped{background:var(--red);color:#fff;}
+  .result-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:12px;}
+  .result-route{font-size:14px;font-weight:600;}
+  .result-meta{font-size:12px;color:var(--text-dim);margin-top:4px;}
+  .result-price{font-family:'IBM Plex Mono',monospace;font-size:18px;color:var(--amber);font-weight:600;white-space:nowrap;}
+  .result-link{display:block;font-size:12px;color:var(--cyan);margin-top:6px;}
+  #resultsMeta{font-size:13px;color:var(--text-dim);margin-bottom:14px;font-family:'IBM Plex Mono',monospace;}
+  #resultsMeta.error{color:var(--red);}
+  .spinner{width:14px;height:14px;border-radius:50%;border:2px solid rgba(231,236,242,0.25);border-top-color:var(--text);display:inline-block;vertical-align:middle;margin-right:8px;animation:spin 0.7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .killswitch{margin:28px 20px;padding:18px;border:1px solid var(--line);border-radius:10px;background:var(--panel);text-align:center;}
   .killswitch p{color:var(--text-dim);font-size:12px;margin:8px 0 14px;}
-
-  #toast{
-    position:fixed;
-    bottom:20px;left:20px;right:20px;
-    background:var(--panel-2);
-    border:1px solid var(--line);
-    border-radius:8px;
-    padding:12px 16px;
-    font-size:13px;
-    text-align:center;
-    display:none;
-  }
+  #toast{position:fixed;bottom:20px;left:20px;right:20px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:12px 16px;font-size:13px;text-align:center;display:none;}
   #toast.show{display:block;}
 </style>
 </head>
@@ -286,8 +180,17 @@
 
   <section>
     <button type="submit" class="btn btn-primary">Salva configurazione</button>
+    <div style="height:10px;"></div>
+    <button type="button" id="searchNowBtn" class="btn btn-secondary">Cerca subito</button>
+    <div class="hint">Usa i valori attuali del form, senza aspettare il prossimo slot programmato. Non modifica la configurazione salvata né lo scheduler automatico.</div>
   </section>
 </form>
+
+<section id="resultsSection" style="display:none;">
+  <h2>Risultati ricerca on-demand</h2>
+  <div id="resultsMeta"></div>
+  <div id="resultsList"></div>
+</section>
 
 <div class="killswitch">
   <div id="statusPill2" class="status-pill stopped"><span class="dot"></span>Ricerche interrotte</div>
@@ -362,6 +265,86 @@ function fillForm(c){
   $('attempts').value = c.attemptsPerDay || 4;
   $('email').value = c.email || '';
 }
+
+function collectCurrentParams(){
+  return {
+    originAirports: parseAirports($('origin').value),
+    destinationAirports: parseAirports($('destination').value),
+    departDateFrom: $('departDateFrom').value,
+    departDateTo: $('departDateTo').value,
+    returnDateFrom: $('returnDateFrom').value,
+    returnDateTo: $('returnDateTo').value,
+    departTimeFrom: $('departTimeFrom').value,
+    departTimeTo: $('departTimeTo').value,
+    arriveTimeFrom: $('arriveTimeFrom').value,
+    arriveTimeTo: $('arriveTimeTo').value,
+    maxStopsOutbound: parseInt($('stopsOut').value, 10),
+    maxStopsReturn: parseInt($('stopsRet').value, 10),
+  };
+}
+
+function renderResults(results, errors){
+  const section = $('resultsSection');
+  const meta = $('resultsMeta');
+  const list = $('resultsList');
+  section.style.display = 'block';
+  list.innerHTML = '';
+
+  if (errors && errors.length){
+    meta.className = 'error';
+    meta.textContent = 'Errori: ' + errors.join(' · ');
+  } else {
+    meta.className = '';
+    meta.textContent = '';
+  }
+
+  if (!results || results.length === 0){
+    list.innerHTML = '<div class="hint">Nessun volo trovato con questi criteri.</div>';
+    return;
+  }
+
+  meta.textContent = (meta.textContent ? meta.textContent + ' — ' : '') + results.length + ' voli trovati, ordinati per prezzo';
+
+  for (const r of results){
+    const div = document.createElement('div');
+    div.className = 'result-card';
+    div.innerHTML = `
+      <div>
+        <div class="result-route">${r.origin} → ${r.destination}</div>
+        <div class="result-meta mono">${r.departDate}${r.departTime ? ' · ' + r.departTime : ''}${r.arriveTime ? ' → ' + r.arriveTime : ''} · ${r.stops ?? '?'} scali · ${r.source}</div>
+        ${r.bookingUrl ? `<a class="result-link" href="${r.bookingUrl}" target="_blank" rel="noopener">Vedi prenotazione →</a>` : ''}
+      </div>
+      <div class="result-price">${r.price} ${r.currency}</div>
+    `;
+    list.appendChild(div);
+  }
+}
+
+$('searchNowBtn').addEventListener('click', async () => {
+  const btn = $('searchNowBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Ricerca in corso…';
+
+  try{
+    const res = await fetch('/.netlify/functions/search-now', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(collectCurrentParams())
+    });
+    const data = await res.json();
+    if (!res.ok){
+      showToast('Errore: ' + (data.error || res.status));
+      return;
+    }
+    renderResults(data.results, data.errors);
+    $('resultsSection').scrollIntoView({ behavior:'smooth', block:'start' });
+  }catch(err){
+    showToast('Errore di rete durante la ricerca.');
+  }finally{
+    btn.disabled = false;
+    btn.textContent = 'Cerca subito';
+  }
+});
 
 async function loadConfig(){
   try{
