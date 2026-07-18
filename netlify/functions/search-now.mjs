@@ -47,7 +47,9 @@ export default async (req) => {
             origin,
             destination,
             departDateFrom: params.departDateFrom,
-            maxStops: params.maxStopsOutbound,
+            returnDateFrom: params.returnDateFrom,
+            maxStopsOutbound: params.maxStopsOutbound,
+            maxStopsReturn: params.maxStopsReturn,
             departTimeFrom: params.departTimeFrom,
             departTimeTo: params.departTimeTo,
             arriveTimeFrom: params.arriveTimeFrom,
@@ -61,6 +63,8 @@ export default async (req) => {
             destination,
             departDateFrom: params.departDateFrom,
             departDateTo: params.departDateTo,
+            returnDateFrom: params.returnDateFrom,
+            returnDateTo: params.returnDateTo,
             maxStops: params.maxStopsOutbound,
           });
           allResults.push(...r);
@@ -73,7 +77,18 @@ export default async (req) => {
 
   allResults.sort((a, b) => a.price - b.price);
 
-  return new Response(JSON.stringify({ results: allResults, errors }), {
+  const criteria = {
+    roundTrip: !!params.returnDateFrom,
+    departDateFrom: params.departDateFrom,
+    departDateTo: params.departDateTo,
+    returnDateFrom: params.returnDateFrom || null,
+    returnDateTo: params.returnDateTo || null,
+    maxStopsOutbound: params.maxStopsOutbound,
+    maxStopsReturn: params.maxStopsReturn,
+    fonte: DUFFEL_API_KEY ? "duffel" : "travelpayouts",
+  };
+
+  return new Response(JSON.stringify({ results: allResults, errors, criteria }), {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });
