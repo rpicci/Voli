@@ -1,70 +1,93 @@
 # Flight Watch
 
-PWA + funzioni serverless per cercare voli automaticamente ogni giorno e ricevere un'email con i risultati.
+PWA + funzioni serverless per cercare voli automaticamente ogni giorno e ricevere un'email con i risultati. Guida pensata per essere seguita **solo da telefono Android**, senza computer.
 
-## ⚠️ Limite importante da capire prima di iniziare
+## Perché serve GitHub e non basta Netlify Drop
 
-Questo progetto **non può essere deployato con Netlify Drop** (trascinamento cartella) come i tuoi PWA precedenti, perché contiene funzioni serverless con variabili d'ambiente segrete (le API key). Serve un deploy da **Git** (GitHub) collegato a Netlify, oppure dalla **Netlify CLI**. Il resto del flusso di lavoro (interfaccia, stile) resta identico a quello a cui sei abituato.
+Questo progetto contiene funzioni serverless con API key segrete: Netlify Drop pubblica solo file statici, quindi serve un repository Git collegato a Netlify.
 
-Non ho potuto testare le chiamate API reali in questo ambiente (nessun accesso a internet in sandbox): il codice segue la documentazione ufficiale delle API, ma alla prima esecuzione vera ti consiglio di controllare i log della funzione (Netlify → Functions → scheduled-search → Logs) per eventuali aggiustamenti.
+## Come creare le sottocartelle su GitHub da telefono
 
-## Struttura
+Su GitHub (sia app che browser mobile), quando crei un nuovo file, nel campo del **nome file** puoi scrivere il percorso completo con le barre, es:
 
 ```
-flight-watch/
-├── netlify.toml
-├── package.json
-├── public/              → il PWA (index.html, manifest, service worker)
-├── netlify/functions/   → funzioni serverless
-│   ├── save-config.mjs      (salva i parametri dal form)
-│   ├── get-config.mjs       (legge config + ultimo esito)
-│   ├── toggle-active.mjs    (flag di stop/riattivazione)
-│   └── scheduled-search.mjs (gira ogni ora, cerca voli se è uno slot giusto)
-└── lib/
-    ├── scheduling.mjs   (calcolo slot orari giornalieri)
-    ├── travelpayouts.mjs
-    ├── duffel.mjs       (opzionale)
-    └── email.mjs
+netlify/functions/scheduled-search.mjs
 ```
 
-## Come funziona la schedulazione
+GitHub crea da solo le cartelle `netlify/` e `netlify/functions/` — non serve nessun altro passaggio.
 
-Netlify permette di schedulare una funzione con un **cron fisso**, deciso al momento del deploy — non può cambiare dinamicamente ogni volta che modifichi "numero tentativi" dal form, altrimenti servirebbe un redeploy ogni volta.
+## Passo 1 — Crea il repository
 
-Per questo `scheduled-search` gira **ogni ora, in punto** (`0 * * * *`), ma appena parte controlla da sola: "in base al numero di tentativi salvato, questa è una delle ore in cui devo cercare?" Se sì, e non l'ha già fatto in quell'ora oggi, esegue la ricerca. Altrimenti esce subito senza consumare chiamate API.
+1. Apri **github.com** dal browser del telefono (o l'app GitHub) e fai login
+2. Tocca **"+" → "New repository"**
+3. Dagli un nome, es. `flight-watch`, spuntalo come privato se preferisci, crea
 
-Esempio con 4 tentativi: 00:00, 06:00, 12:00, 18:00 (ora Italia, gestisce automaticamente ora legale/solare).
+## Passo 2 — Crea i file uno per uno
 
-## Deploy — passo passo
+Per ogni file: **"Add file" → "Create new file"**, incolla il percorso completo nel campo nome, incolla il contenuto nel corpo, poi **"Commit new file"** in basso.
 
-1. **Crea un repository GitHub** con questi file (oppure scaricali e fai `git init` in locale, poi push)
-2. Su **app.netlify.com** → "Add new site" → "Import an existing project" → collega il repository
-3. Build settings: build command vuoto, publish directory `public` (già configurato in `netlify.toml`, Netlify dovrebbe rilevarlo da solo)
-4. Dopo il primo deploy, vai su **Site settings → Environment variables** e aggiungi:
+Crea questi file, nell'ordine che preferisci:
+
+- `netlify.toml`
+- `package.json`
+- `lib/scheduling.mjs`
+- `lib/travelpayouts.mjs`
+- `lib/duffel.mjs`
+- `lib/email.mjs`
+- `netlify/functions/save-config.mjs`
+- `netlify/functions/get-config.mjs`
+- `netlify/functions/toggle-active.mjs`
+- `netlify/functions/scheduled-search.mjs`
+- `public/manifest.json`
+- `public/icon.svg`
+- `public/sw.js`
+- `public/index.html`
+- `README.md` (questo file, opzionale)
+
+Il contenuto di ciascun file te lo scrivo in chat subito dopo, pronto per copia-incolla.
+
+## Passo 3 — Collega Netlify da telefono
+
+1. Apri **app.netlify.com** dal browser del telefono, fai login (o registrati, è gratis)
+2. **"Add new site" → "Import an existing project" → "Deploy with GitHub"**
+3. Autorizza Netlify ad accedere ai tuoi repository, seleziona `flight-watch`
+4. Build settings: lasciali com'è (già configurati in `netlify.toml`), tocca **"Deploy"**
+
+## Passo 4 — Imposta le variabili d'ambiente
+
+Sempre dal browser mobile, dentro il sito appena creato su Netlify:
+
+**Site configuration → Environment variables → Add a variable**
 
 | Variabile | Valore | Obbligatoria |
 |---|---|---|
-| `TRAVELPAYOUTS_TOKEN` | il token ottenuto da travelpayouts.com | Sì (a meno che tu usi solo Duffel) |
+| `DUFFEL_API_KEY` | la live key da duffel.com — **fonte primaria**, dati reali con orari e compagnia | Consigliata |
+| `TRAVELPAYOUTS_TOKEN` | il token da travelpayouts.com — usato solo come fallback se Duffel non è configurata (dati cache, meno affidabili) | No, opzionale |
 | `RESEND_API_KEY` | la API key da resend.com | Sì |
-| `EMAIL_FROM` | es. `Flight Watch <alert@tuodominio.it>` (deve essere un dominio verificato su Resend, oppure il dominio di test che ti forniscono) | Sì |
-| `DUFFEL_API_KEY` | la live key da duffel.com | No, opzionale (dati più precisi su scali/orari) |
+| `EMAIL_FROM` | es. `Flight Watch <alert@tuodominio.it>` | Sì |
 
-5. Fai un redeploy (Deploys → Trigger deploy) perché le funzioni leggano le nuove variabili
-6. Apri il sito da telefono → "Aggiungi a schermata Home" per installarlo come PWA
-7. Compila il form e salva: **da quel momento la ricerca è attiva**. Verifica lo stato nel tabellone in cima alla pagina
+Dopo averle aggiunte: **Deploys → Trigger deploy → Deploy site**, perché le funzioni leggano le nuove variabili.
 
-## Il flag di stop
+## Passo 5 — Usa l'app
 
-Il pulsante rosso in fondo alla pagina imposta `active: false` nella configurazione salvata. La funzione schedulata controlla questo flag **prima di ogni cosa** e se è `false` esce immediatamente: nessuna chiamata API, nessuna email, finché non lo riattivi dallo stesso pulsante.
+1. Apri l'URL del sito (es. `flight-watch-xyz.netlify.app`) dal browser Android
+2. Menu del browser → **"Aggiungi a schermata Home"**
+3. Apri l'icona come faresti con Diario di Ferro, compila il form, salva
 
-## Note su precisione dei dati
+Da quel momento la ricerca gira da sola, indipendentemente dal telefono acceso o spento. Il tabellone in cima alla pagina mostra stato, prossimi slot e ultima esecuzione.
 
-- **Solo Travelpayouts** (senza Duffel): prezzi aggregati/cache, buoni per un alert "c'è un'offerta interessante su questa rotta", ma il filtro su scali è "best effort" e quello su fascia oraria viene ignorato (l'API non fornisce quel dato). Verifica sempre il prezzo sul sito di prenotazione prima di comprare.
-- **Con Duffel** aggiunto: dati reali con orari e scali precisi, ma la ricerca funziona solo per una data singola per slice (non un range), quindi il codice attuale usa `departDateFrom` come data di ricerca; se vuoi scandagliare tutto il range di date andrà esteso con un ciclo sulle date (dimmi se vuoi che lo implementi).
+## Ricerca on-demand
 
-## Prossimi miglioramenti possibili (dimmi se li vuoi)
+Oltre allo scheduler automatico, la pagina ha un bottone **"Cerca subito"** sotto "Salva configurazione": usa i valori attuali del form (anche se non ancora salvati) e mostra i risultati subito in pagina, sotto il tabellone di stato. Non manda email, non modifica la configurazione salvata né lo scheduler automatico — è solo un modo per fare una verifica immediata senza aspettare il prossimo slot programmato.
 
-- Ciclare su più date nel range invece che una sola con Duffel
-- Filtro giorni della settimana (es. solo weekend) oltre al range di date
-- Cronologia dei prezzi trovati nel tempo (grafico andamento)
-- Soglia di prezzo minima sotto cui inviare l'email, per non essere sommerso da notifiche
+## Cronologia correzioni
+
+- **Bug corretto**: `lib/travelpayouts.mjs` usava nomi di campo sbagliati (`depart_date`, `number_of_changes`) rispetto a quelli reali restituiti dall'API (`departure_at`, `transfers`), causando zero risultati anche quando l'API trovava voli. Corretto.
+- **Ricerca round-trip reale**: prima la ricerca (con Duffel) considerava solo l'andata, ignorando le date di rientro. Ora cerca sempre andata+ritorno insieme.
+- **Fasce orarie chiarite**: "orario di partenza" = decollo dell'andata, "orario di arrivo" = atterraggio del volo di **ritorno** (quando rientri a casa), non dell'andata come prima.
+- **Duffel come fonte primaria**: Travelpayouts (`v1/prices/cheap`) si è rivelata una cache di prezzi visti da altri utenti nelle ultime 48 ore, non una ricerca live — causa di risultati con orari o combinazioni non più reali. L'alternativa (l'API di ricerca live di Travelpayouts) richiede approvazione come partner con requisiti di conversione non adatti a un tool personale. Duffel resta quindi la fonte consigliata: dati reali, nessuna approvazione oltre alla verifica già fatta. Travelpayouts resta disponibile come fallback se Duffel non è configurata, con gli stessi limiti di prima.
+- **Compagnia e numero di volo**: ora mostrati nei risultati (pagina ed email), quando la fonte li fornisce.
+
+## Aggiornamenti futuri
+
+Se in futuro vuoi modificare il codice, basta modificare il file corrispondente direttamente su GitHub (tocca la matita ✏️ su un file esistente, modifica, "Commit changes") — Netlify rifà il deploy automaticamente ad ogni commit.
