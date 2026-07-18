@@ -194,6 +194,7 @@
 
 <section id="resultsSection" style="display:none;">
   <h2>Risultati ricerca on-demand</h2>
+  <div id="resultsCriteria" class="hint" style="margin-bottom:12px;display:none;"></div>
   <div id="resultsMeta"></div>
   <div id="resultsList"></div>
 </section>
@@ -225,10 +226,11 @@ function applyOneWayToggle(){
   const oneWay = $('oneWay').checked;
   const field = $('returnDateField');
   field.style.display = oneWay ? 'none' : 'block';
-  if (oneWay){
-    $('returnDateFrom').value = '';
-    $('returnDateTo').value = '';
-  }
+  // Non cancelliamo più i valori qui: restano nei campi nascosti, ma
+  // vengono esplicitamente ignorati in collectCurrentParams()/payload
+  // quando "Solo andata" è spuntato, cosa che avviene al momento
+  // dell'invio, non al momento del toggle. Così se despunti "Solo andata"
+  // ritrovi le date che avevi inserito prima, invece di doverle riscrivere.
 }
 $('oneWay').addEventListener('change', applyOneWayToggle);
 
@@ -286,13 +288,14 @@ function fillForm(c){
 }
 
 function collectCurrentParams(){
+  const oneWay = $('oneWay').checked;
   return {
     originAirports: parseAirports($('origin').value),
     destinationAirports: parseAirports($('destination').value),
     departDateFrom: $('departDateFrom').value,
     departDateTo: $('departDateTo').value,
-    returnDateFrom: $('returnDateFrom').value,
-    returnDateTo: $('returnDateTo').value,
+    returnDateFrom: oneWay ? '' : $('returnDateFrom').value,
+    returnDateTo: oneWay ? '' : $('returnDateTo').value,
     departTimeFrom: $('departTimeFrom').value,
     departTimeTo: $('departTimeTo').value,
     arriveTimeFrom: $('arriveTimeFrom').value,
@@ -302,12 +305,23 @@ function collectCurrentParams(){
   };
 }
 
-function renderResults(results, errors){
+function renderResults(results, errors, criteria){
   const section = $('resultsSection');
   const meta = $('resultsMeta');
   const list = $('resultsList');
+  const criteriaBox = $('resultsCriteria');
   section.style.display = 'block';
   list.innerHTML = '';
+
+  if (criteria){
+    criteriaBox.innerHTML = `Criteri usati: ${criteria.roundTrip ? 'andata+ritorno' : 'sola andata'}` +
+      ` · andata ${criteria.departDateFrom}→${criteria.departDateTo} (max ${criteria.maxStopsOutbound} scali)` +
+      (criteria.roundTrip ? ` · ritorno ${criteria.returnDateFrom}→${criteria.returnDateTo} (max ${criteria.maxStopsReturn} scali)` : '') +
+      ` · fonte: ${criteria.fonte}`;
+    criteriaBox.style.display = 'block';
+  } else {
+    criteriaBox.style.display = 'none';
+  }
 
   if (errors && errors.length){
     meta.className = 'error';
@@ -362,7 +376,7 @@ $('searchNowBtn').addEventListener('click', async () => {
       showToast('Errore: ' + (data.error || res.status));
       return;
     }
-    renderResults(data.results, data.errors);
+    renderResults(data.results, data.errors, data.criteria);
     $('resultsSection').scrollIntoView({ behavior:'smooth', block:'start' });
   }catch(err){
     showToast('Errore di rete durante la ricerca.');
@@ -396,8 +410,8 @@ $('configForm').addEventListener('submit', async (e) => {
     destinationAirports: parseAirports($('destination').value),
     departDateFrom: $('departDateFrom').value,
     departDateTo: $('departDateTo').value,
-    returnDateFrom: $('returnDateFrom').value,
-    returnDateTo: $('returnDateTo').value,
+    returnDateFrom: $('oneWay').checked ? '' : $('returnDateFrom').value,
+    returnDateTo: $('oneWay').checked ? '' : $('returnDateTo').value,
     departTimeFrom: $('departTimeFrom').value,
     departTimeTo: $('departTimeTo').value,
     arriveTimeFrom: $('arriveTimeFrom').value,
