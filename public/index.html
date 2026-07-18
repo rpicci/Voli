@@ -117,10 +117,16 @@
         </div>
       </div>
       <div class="field">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" id="oneWay" style="width:auto;">
+          Solo andata (nessun volo di ritorno)
+        </label>
+      </div>
+      <div class="field" id="returnDateField">
         <label>Finestra data di rientro</label>
         <div class="row2">
-          <input type="date" id="returnDateFrom" required>
-          <input type="date" id="returnDateTo" required>
+          <input type="date" id="returnDateFrom">
+          <input type="date" id="returnDateTo">
         </div>
       </div>
     </div>
@@ -142,7 +148,7 @@
           <input type="time" id="arriveTimeFrom">
           <input type="time" id="arriveTimeTo">
         </div>
-        <div class="hint">Orario di partenza = decollo dell'andata. Orario di arrivo = atterraggio del volo di ritorno (quando rientri a casa). Filtro preciso solo con Duffel configurato; con la sola Travelpayouts viene ignorato (l'API non fornisce l'orario, solo la data).</div>
+        <div class="hint">Orario di partenza = decollo dell'andata. Orario di arrivo = atterraggio del ritorno (rientro a casa) — oppure, se hai scelto "solo andata", atterraggio dell'unica tratta. Filtro preciso solo con Duffel configurato; con la sola Travelpayouts viene ignorato (l'API non fornisce l'orario, solo la data).</div>
       </div>
     </div>
   </section>
@@ -215,6 +221,17 @@ function parseAirports(str){
   return str.split(',').map(s=>s.trim().toUpperCase()).filter(Boolean);
 }
 
+function applyOneWayToggle(){
+  const oneWay = $('oneWay').checked;
+  const field = $('returnDateField');
+  field.style.display = oneWay ? 'none' : 'block';
+  if (oneWay){
+    $('returnDateFrom').value = '';
+    $('returnDateTo').value = '';
+  }
+}
+$('oneWay').addEventListener('change', applyOneWayToggle);
+
 function renderStatus(config, lastRun){
   const active = !!(config && config.active);
   currentActive = active;
@@ -264,6 +281,8 @@ function fillForm(c){
   $('stopsRet').value = c.maxStopsReturn ?? 1;
   $('attempts').value = c.attemptsPerDay || 4;
   $('email').value = c.email || '';
+  $('oneWay').checked = !c.returnDateFrom;
+  applyOneWayToggle();
 }
 
 function collectCurrentParams(){
@@ -323,6 +342,11 @@ function renderResults(results, errors){
 }
 
 $('searchNowBtn').addEventListener('click', async () => {
+  if (!$('oneWay').checked && (!$('returnDateFrom').value || !$('returnDateTo').value)){
+    showToast('Inserisci la finestra data di rientro, oppure spunta "Solo andata".');
+    return;
+  }
+
   const btn = $('searchNowBtn');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>Ricerca in corso…';
@@ -361,6 +385,12 @@ async function loadConfig(){
 
 $('configForm').addEventListener('submit', async (e) => {
   e.preventDefault();
+
+  if (!$('oneWay').checked && (!$('returnDateFrom').value || !$('returnDateTo').value)){
+    showToast('Inserisci la finestra data di rientro, oppure spunta "Solo andata".');
+    return;
+  }
+
   const payload = {
     originAirports: parseAirports($('origin').value),
     destinationAirports: parseAirports($('destination').value),
