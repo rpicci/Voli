@@ -15,14 +15,11 @@ export default async (req) => {
     });
   }
 
-  // Validazione minima
   const required = [
     "originAirports",
     "destinationAirports",
     "departDateFrom",
     "departDateTo",
-    "returnDateFrom",
-    "returnDateTo",
     "email",
     "attemptsPerDay",
   ];
@@ -34,7 +31,14 @@ export default async (req) => {
     );
   }
 
-  // Se non specificato, la ricerca è attiva di default quando si salva
+  // Date di rientro obbligatorie solo se non è una ricerca "sola andata"
+  if (config.returnDateFrom && !config.returnDateTo) {
+    return new Response(
+      JSON.stringify({ error: "Manca la fine della finestra data di rientro" }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
   if (typeof config.active !== "boolean") config.active = true;
 
   const store = getStore("flight-watch-config");
