@@ -137,12 +137,12 @@
         </div>
       </div>
       <div class="field">
-        <label>Orario di arrivo (dalle — alle)</label>
+        <label>Orario di arrivo al rientro (dalle — alle)</label>
         <div class="row2">
           <input type="time" id="arriveTimeFrom">
           <input type="time" id="arriveTimeTo">
         </div>
-        <div class="hint">Filtro orari preciso solo se è configurata la chiave Duffel (vedi README). Con la sola Travelpayouts viene ignorato.</div>
+        <div class="hint">Orario di partenza = decollo dell'andata. Orario di arrivo = atterraggio del volo di ritorno (quando rientri a casa). Filtro preciso solo con Duffel configurato; con la sola Travelpayouts viene ignorato (l'API non fornisce l'orario, solo la data).</div>
       </div>
     </div>
   </section>
@@ -311,7 +311,9 @@ function renderResults(results, errors){
     div.innerHTML = `
       <div>
         <div class="result-route">${r.origin} → ${r.destination}</div>
-        <div class="result-meta mono">${r.departDate}${r.departTime ? ' · ' + r.departTime : ''}${r.arriveTime ? ' → ' + r.arriveTime : ''} · ${r.stops ?? '?'} scali · ${r.source}</div>
+        <div class="result-meta mono">Andata: ${r.departDate}${r.departTime ? ' ' + r.departTime : ''}${r.arriveTime ? ' → ' + r.arriveTime : ''} · ${r.stops ?? '?'} scali${r.airline ? ' · ' + r.airline : ''}${r.flightNumber ? ' ' + r.flightNumber : ''}</div>
+        ${r.returnDate ? `<div class="result-meta mono">Ritorno: ${r.returnDate}${r.returnArriveTime ? ' → arrivo ' + r.returnArriveTime : ''}${r.returnStops != null ? ' · ' + r.returnStops + ' scali' : ''}${r.returnAirline ? ' · ' + r.returnAirline : ''}${r.returnFlightNumber ? ' ' + r.returnFlightNumber : ''}</div>` : ''}
+        <div class="result-meta mono">${r.source}</div>
         ${r.bookingUrl ? `<a class="result-link" href="${r.bookingUrl}" target="_blank" rel="noopener">Vedi prenotazione →</a>` : ''}
       </div>
       <div class="result-price">${r.price} ${r.currency}</div>
