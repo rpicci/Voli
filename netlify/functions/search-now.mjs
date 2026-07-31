@@ -1,5 +1,6 @@
 import { searchCheapFlights } from "../../lib/travelpayouts.mjs";
 import { searchFlights as searchFlightsDuffel } from "../../lib/duffel.mjs";
+import { searchGoogleFlights } from "../../lib/googleflights.mjs";
 
 export default async (req) => {
   if (req.method !== "POST") {
@@ -27,6 +28,11 @@ export default async (req) => {
 
   const TRAVELPAYOUTS_TOKEN = process.env.TRAVELPAYOUTS_TOKEN;
   const DUFFEL_API_KEY = process.env.DUFFEL_API_KEY;
+  const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
+  // Google Flights (RapidAPI) ha una quota gratuita di sole 150 richieste/mese:
+  // va interrogata solo su richiesta esplicita dell'utente per questa singola
+  // ricerca, mai automaticamente, per non esaurirla in fretta.
+  const useGoogleFlights = !!params.includeGoogleFlights && !!RAPIDAPI_KEY;
 
   const allResults = [];
   const errors = [];
@@ -35,9 +41,9 @@ export default async (req) => {
     for (const destination of params.destinationAirports) {
       if (origin === destination) continue;
 
-      // Interroghiamo ENTRAMBE le fonti quando disponibili, non più una in
+      // Interroghiamo tutte le fonti disponibili e abilitate, non più una in
       // alternativa all'altra: Duffel per dati live affidabili, Travelpayouts
-      // anche per Ryanair/Wizz Air che Duffel non copre (dati in cache).
+      // e Google Flights anche per Ryanair/Wizz Air che Duffel non copre.
       if (DUFFEL_API_KEY) {
         try {
           const r = await searchFlightsDuffel({
@@ -76,6 +82,22 @@ export default async (req) => {
           errors.push(`Travelpayouts ${origin}->${destination}: ${err.message}`);
         }
       }
+
+      if (useGoogleFlights) {
+        try {
+          const r = await searchGoogleFlights({
+            apiKey: RAPIDAPI_KEY,
+            origin,
+            destination,
+            departDateFrom: params.departDateFrom,
+            returnDateFrom: params.returnDateFrom,
+            maxStopsOutbound: params.maxStopsOutbound,
+          });
+          allResults.push(...r);
+        } catch (err) {
+          errors.push(`Google Flights ${origin}->${destination}: ${err.message}`);
+        }
+      }
     }
   }
 
@@ -89,7 +111,11 @@ export default async (req) => {
     returnDateTo: params.returnDateTo || null,
     maxStopsOutbound: params.maxStopsOutbound,
     maxStopsReturn: params.maxStopsReturn,
-    fontiInterrogate: [DUFFEL_API_KEY ? "duffel" : null, TRAVELPAYOUTS_TOKEN ? "travelpayouts" : null].filter(Boolean),
+    fontiInterrogate: [
+      DUFFEL_API_KEY ? "duffel" : null,
+      TRAVELPAYOUTS_TOKEN ? "travelpayouts" : null,
+      useGoogleFlights ? "googleflights" : null,
+    ].filter(Boolean),
   };
 
   return new Response(JSON.stringify({ results: allResults, errors, criteria }), {
