@@ -2,6 +2,7 @@ import { getStore } from "@netlify/blobs";
 import { isDueNow } from "../../lib/scheduling.mjs";
 import { searchCheapFlights } from "../../lib/travelpayouts.mjs";
 import { searchFlights as searchFlightsDuffel } from "../../lib/duffel.mjs";
+import { searchGoogleFlights } from "../../lib/googleflights.mjs";
 import { sendResultsEmail, sendStatusEmail } from "../../lib/email.mjs";
 
 export default async () => {
@@ -26,8 +27,14 @@ export default async () => {
 
   const TRAVELPAYOUTS_TOKEN = process.env.TRAVELPAYOUTS_TOKEN;
   const DUFFEL_API_KEY = process.env.DUFFEL_API_KEY;
+  const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
   const EMAIL_FROM = process.env.EMAIL_FROM;
+  // A differenza della ricerca on-demand, qui Google Flights va abilitata
+  // esplicitamente nella configurazione salvata (flag persistente), non
+  // ricerca per ricerca — perché lo scheduler gira da solo senza che tu
+  // possa spuntare una checkbox ogni volta.
+  const useGoogleFlights = !!config.includeGoogleFlightsScheduled && !!RAPIDAPI_KEY;
 
   const allResults = [];
   const errors = [];
@@ -74,6 +81,22 @@ export default async () => {
           allResults.push(...r);
         } catch (err) {
           errors.push(`Travelpayouts ${origin}->${destination}: ${err.message}`);
+        }
+      }
+
+      if (useGoogleFlights) {
+        try {
+          const r = await searchGoogleFlights({
+            apiKey: RAPIDAPI_KEY,
+            origin,
+            destination,
+            departDateFrom: config.departDateFrom,
+            returnDateFrom: config.returnDateFrom,
+            maxStopsOutbound: config.maxStopsOutbound,
+          });
+          allResults.push(...r);
+        } catch (err) {
+          errors.push(`Google Flights ${origin}->${destination}: ${err.message}`);
         }
       }
 
