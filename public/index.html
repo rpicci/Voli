@@ -188,6 +188,10 @@
   <section>
     <button type="submit" class="btn btn-primary">Salva configurazione</button>
     <div style="height:10px;"></div>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;">
+      <input type="checkbox" id="includeGoogleFlights" style="width:auto;">
+      Includi anche Google Flights (copre Ryanair/Wizz Air, quota gratuita limitata a 150/mese)
+    </label>
     <button type="button" id="searchNowBtn" class="btn btn-secondary">Cerca subito</button>
     <div class="hint">Usa i valori attuali del form, senza aspettare il prossimo slot programmato. Non modifica la configurazione salvata né lo scheduler automatico.</div>
   </section>
@@ -308,6 +312,7 @@ function collectCurrentParams(){
     arriveTimeTo: $('arriveTimeTo').value,
     maxStopsOutbound: parseInt($('stopsOut').value, 10),
     maxStopsReturn: parseInt($('stopsRet').value, 10),
+    includeGoogleFlights: $('includeGoogleFlights').checked,
   };
 }
 
