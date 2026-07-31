@@ -182,6 +182,13 @@
         <label for="email">Email per i risultati</label>
         <input type="email" id="email" placeholder="tuo@indirizzo.it" required>
       </div>
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" id="includeGoogleFlightsScheduled" style="width:auto;">
+          Includi Google Flights anche nella ricerca automatica
+        </label>
+        <div class="hint" id="quotaEstimate">Copre anche Ryanair/Wizz Air, ma consuma la quota gratuita (150 richieste/mese) — stima: —</div>
+      </div>
     </div>
   </section>
 
@@ -226,6 +233,20 @@ function showToast(msg){
 function parseAirports(str){
   return str.split(',').map(s=>s.trim().toUpperCase()).filter(Boolean);
 }
+
+function updateQuotaEstimate(){
+  const origins = parseAirports($('origin').value);
+  const destinations = parseAirports($('destination').value);
+  const pairs = origins.length * destinations.length; // stima semplice, non esclude origin===destination
+  const attempts = parseInt($('attempts').value, 10) || 0;
+  const monthlyEstimate = pairs * attempts * 30;
+  const el = $('quotaEstimate');
+  const over = monthlyEstimate > 150;
+  el.style.color = over ? 'var(--red)' : '';
+  el.textContent = `Copre anche Ryanair/Wizz Air, ma consuma la quota gratuita (150 richieste/mese) — stima: ~${monthlyEstimate}/mese${over ? ' ⚠️ supera la quota gratuita' : ''}`;
+}
+['origin','destination','attempts'].forEach(id => $(id).addEventListener('input', updateQuotaEstimate));
+$('includeGoogleFlightsScheduled').addEventListener('change', updateQuotaEstimate);
 
 function applyOneWayToggle(){
   const oneWay = $('oneWay').checked;
@@ -284,6 +305,8 @@ function fillForm(c){
   $('email').value = c.email || '';
   $('oneWay').checked = !c.returnDateFrom;
   applyOneWayToggle();
+  $('includeGoogleFlightsScheduled').checked = !!c.includeGoogleFlightsScheduled;
+  updateQuotaEstimate();
 }
 
 async function loadConfig(){
@@ -423,6 +446,7 @@ $('configForm').addEventListener('submit', async (e) => {
     attemptsPerDay: parseInt($('attempts').value, 10),
     email: $('email').value,
     active: currentActive,
+    includeGoogleFlightsScheduled: $('includeGoogleFlightsScheduled').checked,
   };
 
   try{
@@ -468,6 +492,7 @@ if ('serviceWorker' in navigator){
 }
 
 loadConfig();
+updateQuotaEstimate();
 </script>
 </body>
 </html>
