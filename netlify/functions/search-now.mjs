@@ -1,8 +1,6 @@
 import { searchCheapFlights } from "../../lib/travelpayouts.mjs";
 import { searchFlights as searchFlightsDuffel } from "../../lib/duffel.mjs";
 
-// Ricerca immediata, scatenata dal bottone "Cerca subito" nel form.
-// Non tocca la configurazione salvata né lo scheduler automatico.
 export default async (req) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
@@ -30,18 +28,18 @@ export default async (req) => {
   const TRAVELPAYOUTS_TOKEN = process.env.TRAVELPAYOUTS_TOKEN;
   const DUFFEL_API_KEY = process.env.DUFFEL_API_KEY;
 
-  const origins = params.originAirports;
-  const destinations = params.destinationAirports;
-
   const allResults = [];
   const errors = [];
 
-  for (const origin of origins) {
-    for (const destination of destinations) {
+  for (const origin of params.originAirports) {
+    for (const destination of params.destinationAirports) {
       if (origin === destination) continue;
 
-      try {
-        if (DUFFEL_API_KEY) {
+      // Interroghiamo ENTRAMBE le fonti quando disponibili, non più una in
+      // alternativa all'altra: Duffel per dati live affidabili, Travelpayouts
+      // anche per Ryanair/Wizz Air che Duffel non copre (dati in cache).
+      if (DUFFEL_API_KEY) {
+        try {
           const r = await searchFlightsDuffel({
             apiKey: DUFFEL_API_KEY,
             origin,
@@ -56,7 +54,13 @@ export default async (req) => {
             arriveTimeTo: params.arriveTimeTo,
           });
           allResults.push(...r);
-        } else {
+        } catch (err) {
+          errors.push(`Duffel ${origin}->${destination}: ${err.message}`);
+        }
+      }
+
+      if (TRAVELPAYOUTS_TOKEN) {
+        try {
           const r = await searchCheapFlights({
             token: TRAVELPAYOUTS_TOKEN,
             origin,
@@ -68,9 +72,9 @@ export default async (req) => {
             maxStops: params.maxStopsOutbound,
           });
           allResults.push(...r);
+        } catch (err) {
+          errors.push(`Travelpayouts ${origin}->${destination}: ${err.message}`);
         }
-      } catch (err) {
-        errors.push(`${origin}->${destination}: ${err.message}`);
       }
     }
   }
@@ -85,7 +89,7 @@ export default async (req) => {
     returnDateTo: params.returnDateTo || null,
     maxStopsOutbound: params.maxStopsOutbound,
     maxStopsReturn: params.maxStopsReturn,
-    fonte: DUFFEL_API_KEY ? "duffel" : "travelpayouts",
+    fontiInterrogate: [DUFFEL_API_KEY ? "duffel" : null, TRAVELPAYOUTS_TOKEN ? "travelpayouts" : null].filter(Boolean),
   };
 
   return new Response(JSON.stringify({ results: allResults, errors, criteria }), {

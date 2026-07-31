@@ -9,11 +9,8 @@ export default async () => {
   const resultsStore = getStore("flight-watch-results");
 
   const config = await configStore.get("config", { type: "json" });
-
-  // Nessuna configurazione salvata ancora: non fare nulla
   if (!config) return new Response("Nessuna configurazione", { status: 200 });
 
-  // FLAG DI STOP: se disattivato, la funzione esce subito senza cercare
   if (!config.active) {
     return new Response("Ricerche disattivate (flag stop)", { status: 200 });
   }
@@ -28,57 +25,64 @@ export default async () => {
   }
 
   const TRAVELPAYOUTS_TOKEN = process.env.TRAVELPAYOUTS_TOKEN;
-  const DUFFEL_API_KEY = process.env.DUFFEL_API_KEY; // opzionale
+  const DUFFEL_API_KEY = process.env.DUFFEL_API_KEY;
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
-  const EMAIL_FROM = process.env.EMAIL_FROM; // es. "Flight Watch <alert@tuodominio.it>"
-
-  const origins = config.originAirports;
-  const destinations = config.destinationAirports;
+  const EMAIL_FROM = process.env.EMAIL_FROM;
 
   const allResults = [];
   const errors = [];
 
-  for (const origin of origins) {
-    for (const destination of destinations) {
+  for (const origin of config.originAirports) {
+    for (const destination of config.destinationAirports) {
       if (origin === destination) continue;
 
-      try {
-        if (DUFFEL_API_KEY) {
+      // Interroghiamo entrambe le fonti quando disponibili: Duffel per dati
+      // live affidabili, Travelpayouts anche per Ryanair/Wizz Air (cache).
+      if (DUFFEL_API_KEY) {
+        try {
           const r = await searchFlightsDuffel({
             apiKey: DUFFEL_API_KEY,
             origin,
             destination,
             departDateFrom: config.departDateFrom,
-            departDateTo: config.departDateTo,
-            maxStops: config.maxStopsOutbound,
+            returnDateFrom: config.returnDateFrom,
+            maxStopsOutbound: config.maxStopsOutbound,
+            maxStopsReturn: config.maxStopsReturn,
             departTimeFrom: config.departTimeFrom,
             departTimeTo: config.departTimeTo,
             arriveTimeFrom: config.arriveTimeFrom,
             arriveTimeTo: config.arriveTimeTo,
           });
           allResults.push(...r);
-        } else {
+        } catch (err) {
+          errors.push(`Duffel ${origin}->${destination}: ${err.message}`);
+        }
+      }
+
+      if (TRAVELPAYOUTS_TOKEN) {
+        try {
           const r = await searchCheapFlights({
             token: TRAVELPAYOUTS_TOKEN,
             origin,
             destination,
             departDateFrom: config.departDateFrom,
             departDateTo: config.departDateTo,
+            returnDateFrom: config.returnDateFrom,
+            returnDateTo: config.returnDateTo,
             maxStops: config.maxStopsOutbound,
           });
           allResults.push(...r);
+        } catch (err) {
+          errors.push(`Travelpayouts ${origin}->${destination}: ${err.message}`);
         }
-      } catch (err) {
-        errors.push(`${origin}->${destination}: ${err.message}`);
       }
 
-      // Piccola pausa per non superare i rate limit delle API gratuite
       await new Promise((resolve) => setTimeout(resolve, 300));
     }
   }
 
-  // Salva sempre l'esito dell'esecuzione (anche se zero risultati), utile
-  // per il pannello di stato nella pagina.
+  allResults.sort((a, b) => a.price - b.price);
+
   await resultsStore.setJSON("last-run", {
     ranAt: new Date().toISOString(),
     slotKey: currentSlotKey,
@@ -86,7 +90,6 @@ export default async () => {
     errors,
   });
 
-  // Aggiorna lo slot eseguito per evitare doppie esecuzioni nella stessa ora
   config.lastRunSlotKey = currentSlotKey;
   await configStore.setJSON("config", config);
 
@@ -97,7 +100,7 @@ export default async () => {
         from: EMAIL_FROM,
         to: config.email,
         results: allResults,
-        searchLabel: `${origins.join("/")} → ${destinations.join("/")}`,
+        searchLabel: `${config.originAirports.join("/")} → ${config.destinationAirports.join("/")}`,
       });
     } else if (errors.length > 0) {
       await sendStatusEmail({
@@ -108,7 +111,6 @@ export default async () => {
         message: `La ricerca di oggi ha incontrato errori: ${errors.join("; ")}`,
       });
     }
-    // Se zero risultati e zero errori: nessuna email, per non essere invadenti
   }
 
   return new Response(
@@ -117,8 +119,6 @@ export default async () => {
   );
 };
 
-// Gira ogni ora in punto; la funzione stessa decide, in base al numero di
-// tentativi configurato, se questa è una delle ore "giuste" per cercare.
 export const config = {
   schedule: "0 * * * *",
 };
