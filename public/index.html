@@ -50,17 +50,18 @@
   .btn-secondary:disabled{opacity:0.5;}
   .btn-stop{background:transparent;border:1.5px solid var(--red);color:var(--red);}
   .btn-stop.is-stopped{background:var(--red);color:#fff;}
+  .killswitch{margin:28px 20px;padding:18px;border:1px solid var(--line);border-radius:10px;background:var(--panel);text-align:center;}
+  .killswitch p{color:var(--text-dim);font-size:12px;margin:8px 0 14px;}
   .result-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:12px;}
   .result-route{font-size:14px;font-weight:600;}
   .result-meta{font-size:12px;color:var(--text-dim);margin-top:4px;}
   .result-price{font-family:'IBM Plex Mono',monospace;font-size:18px;color:var(--amber);font-weight:600;white-space:nowrap;}
   .result-link{display:block;font-size:12px;color:var(--cyan);margin-top:6px;}
+  .result-note{font-size:11px;color:#b45309;margin-top:6px;background:rgba(180,83,9,0.12);padding:4px 8px;border-radius:5px;display:inline-block;}
   #resultsMeta{font-size:13px;color:var(--text-dim);margin-bottom:14px;font-family:'IBM Plex Mono',monospace;}
   #resultsMeta.error{color:var(--red);}
-  .spinner{width:14px;height:14px;border-radius:50%;border:2px solid rgba(231,236,242,0.25);border-top-color:var(--text);display:inline-block;vertical-align:middle;margin-right:8px;animation:spin 0.7s linear infinite;}
+  .spinner{width:14px;height:14px;border-radius:50%;border:2px solid rgba(4,33,30,0.3);border-top-color:#04211E;display:inline-block;vertical-align:middle;margin-right:8px;animation:spin 0.7s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
-  .killswitch{margin:28px 20px;padding:18px;border:1px solid var(--line);border-radius:10px;background:var(--panel);text-align:center;}
-  .killswitch p{color:var(--text-dim);font-size:12px;margin:8px 0 14px;}
   #toast{position:fixed;bottom:20px;left:20px;right:20px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:12px 16px;font-size:13px;text-align:center;display:none;}
   #toast.show{display:block;}
 </style>
@@ -148,7 +149,7 @@
           <input type="time" id="arriveTimeFrom">
           <input type="time" id="arriveTimeTo">
         </div>
-        <div class="hint">Orario di partenza = decollo dell'andata. Orario di arrivo = atterraggio del ritorno (rientro a casa) — oppure, se hai scelto "solo andata", atterraggio dell'unica tratta. Filtro preciso solo con Duffel configurato; con la sola Travelpayouts viene ignorato (l'API non fornisce l'orario, solo la data).</div>
+        <div class="hint">Orario di partenza = decollo dell'andata. Orario di arrivo = atterraggio del ritorno (rientro a casa) — oppure, se hai scelto "solo andata", atterraggio dell'unica tratta. Filtro preciso solo su risultati Duffel; su Travelpayouts viene ignorato (l'API non fornisce l'orario, solo la data).</div>
       </div>
     </div>
   </section>
@@ -224,13 +225,7 @@ function parseAirports(str){
 
 function applyOneWayToggle(){
   const oneWay = $('oneWay').checked;
-  const field = $('returnDateField');
-  field.style.display = oneWay ? 'none' : 'block';
-  // Non cancelliamo più i valori qui: restano nei campi nascosti, ma
-  // vengono esplicitamente ignorati in collectCurrentParams()/payload
-  // quando "Solo andata" è spuntato, cosa che avviene al momento
-  // dell'invio, non al momento del toggle. Così se despunti "Solo andata"
-  // ritrovi le date che avevi inserito prima, invece di doverle riscrivere.
+  $('returnDateField').style.display = oneWay ? 'none' : 'block';
 }
 $('oneWay').addEventListener('change', applyOneWayToggle);
 
@@ -287,6 +282,17 @@ function fillForm(c){
   applyOneWayToggle();
 }
 
+async function loadConfig(){
+  try{
+    const res = await fetch('/.netlify/functions/get-config');
+    const { config, lastRun } = await res.json();
+    fillForm(config);
+    renderStatus(config, lastRun);
+  }catch(e){
+    showToast('Impossibile contattare il server. Riprova più tardi.');
+  }
+}
+
 function collectCurrentParams(){
   const oneWay = $('oneWay').checked;
   return {
@@ -314,10 +320,11 @@ function renderResults(results, errors, criteria){
   list.innerHTML = '';
 
   if (criteria){
+    const fonti = (criteria.fontiInterrogate || []).join(' + ') || 'nessuna configurata';
     criteriaBox.innerHTML = `Criteri usati: ${criteria.roundTrip ? 'andata+ritorno' : 'sola andata'}` +
       ` · andata ${criteria.departDateFrom}→${criteria.departDateTo} (max ${criteria.maxStopsOutbound} scali)` +
       (criteria.roundTrip ? ` · ritorno ${criteria.returnDateFrom}→${criteria.returnDateTo} (max ${criteria.maxStopsReturn} scali)` : '') +
-      ` · fonte: ${criteria.fonte}`;
+      ` · fonti interrogate: ${fonti}`;
     criteriaBox.style.display = 'block';
   } else {
     criteriaBox.style.display = 'none';
@@ -332,7 +339,7 @@ function renderResults(results, errors, criteria){
   }
 
   if (!results || results.length === 0){
-    list.innerHTML = '<div class="hint">Nessun volo trovato con questi criteri.</div>';
+    list.innerHTML += '<div class="hint">Nessun volo trovato con questi criteri.</div>';
     return;
   }
 
@@ -347,6 +354,7 @@ function renderResults(results, errors, criteria){
         <div class="result-meta mono">Andata: ${r.departDate}${r.departTime ? ' ' + r.departTime : ''}${r.arriveTime ? ' → ' + r.arriveTime : ''} · ${r.stops ?? '?'} scali${r.airline ? ' · ' + r.airline : ''}${r.flightNumber ? ' ' + r.flightNumber : ''}</div>
         ${r.returnDate ? `<div class="result-meta mono">Ritorno: ${r.returnDate}${r.returnArriveTime ? ' → arrivo ' + r.returnArriveTime : ''}${r.returnStops != null ? ' · ' + r.returnStops + ' scali' : ''}${r.returnAirline ? ' · ' + r.returnAirline : ''}${r.returnFlightNumber ? ' ' + r.returnFlightNumber : ''}</div>` : ''}
         <div class="result-meta mono">${r.source}</div>
+        ${r.note ? `<div class="result-note">⚠️ ${r.note}</div>` : ''}
         ${r.bookingUrl ? `<a class="result-link" href="${r.bookingUrl}" target="_blank" rel="noopener">Vedi prenotazione →</a>` : ''}
       </div>
       <div class="result-price">${r.price} ${r.currency}</div>
@@ -385,17 +393,6 @@ $('searchNowBtn').addEventListener('click', async () => {
     btn.textContent = 'Cerca subito';
   }
 });
-
-async function loadConfig(){
-  try{
-    const res = await fetch('/.netlify/functions/get-config');
-    const { config, lastRun } = await res.json();
-    fillForm(config);
-    renderStatus(config, lastRun);
-  }catch(e){
-    showToast('Impossibile contattare il server. Riprova più tardi.');
-  }
-}
 
 $('configForm').addEventListener('submit', async (e) => {
   e.preventDefault();
