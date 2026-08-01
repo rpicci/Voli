@@ -64,6 +64,39 @@
   @keyframes spin{to{transform:rotate(360deg);}}
   #toast{position:fixed;bottom:20px;left:20px;right:20px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:12px 16px;font-size:13px;text-align:center;display:none;}
   #toast.show{display:block;}
+
+  /* Slider a doppio cursore per le fasce orarie */
+  .dual-slider{position:relative;height:28px;margin:12px 0 4px;}
+  .dual-slider-track{
+    position:absolute;top:50%;left:0;right:0;height:4px;
+    background:var(--panel-2);border:1px solid var(--line);border-radius:2px;
+    transform:translateY(-50%);
+  }
+  .dual-slider-fill{
+    position:absolute;top:50%;height:4px;background:var(--cyan);
+    border-radius:2px;transform:translateY(-50%);pointer-events:none;
+  }
+  .dual-slider-input{
+    position:absolute;top:0;left:0;width:100%;height:28px;
+    margin:0;background:transparent;appearance:none;-webkit-appearance:none;
+    pointer-events:none;
+  }
+  .dual-slider-input::-webkit-slider-thumb{
+    appearance:none;-webkit-appearance:none;
+    width:22px;height:22px;border-radius:50%;
+    background:var(--amber);border:2px solid var(--bg);
+    cursor:pointer;pointer-events:auto;margin-top:0;
+  }
+  .dual-slider-input::-moz-range-thumb{
+    width:22px;height:22px;border-radius:50%;
+    background:var(--amber);border:2px solid var(--bg);
+    cursor:pointer;pointer-events:auto;
+  }
+  .dual-slider-input::-webkit-slider-runnable-track{background:transparent;}
+  .dual-slider-input::-moz-range-track{background:transparent;}
+  .dual-slider-labels{
+    display:flex;justify-content:space-between;font-size:12px;color:var(--cyan);
+  }
 </style>
 </head>
 <body>
@@ -134,19 +167,31 @@
     <h2>Fasce orarie</h2>
     <div class="card">
       <div class="field">
-        <label>Orario di partenza (dalle — alle)</label>
-        <div class="row2">
-          <input type="time" id="departTimeFrom">
-          <input type="time" id="departTimeTo">
+        <label>Orario di partenza andata</label>
+        <div class="dual-slider" id="departTimeSliderBox">
+          <div class="dual-slider-track"></div>
+          <div class="dual-slider-fill" id="departTimeFill"></div>
+          <input type="range" class="dual-slider-input dual-slider-min" id="departTimeMin" min="0" max="1439" step="15" value="0">
+          <input type="range" class="dual-slider-input dual-slider-max" id="departTimeMax" min="0" max="1439" step="15" value="1439">
+        </div>
+        <div class="dual-slider-labels">
+          <span class="mono" id="departTimeMinLabel">00:00</span>
+          <span class="mono" id="departTimeMaxLabel">23:59</span>
         </div>
       </div>
       <div class="field">
-        <label>Orario di arrivo al rientro (dalle — alle)</label>
-        <div class="row2">
-          <input type="time" id="arriveTimeFrom">
-          <input type="time" id="arriveTimeTo">
+        <label>Orario di arrivo al rientro</label>
+        <div class="dual-slider" id="arriveTimeSliderBox">
+          <div class="dual-slider-track"></div>
+          <div class="dual-slider-fill" id="arriveTimeFill"></div>
+          <input type="range" class="dual-slider-input dual-slider-min" id="arriveTimeMin" min="0" max="1439" step="15" value="0">
+          <input type="range" class="dual-slider-input dual-slider-max" id="arriveTimeMax" min="0" max="1439" step="15" value="1439">
         </div>
-        <div class="hint">Orario di partenza = decollo dell'andata. Orario di arrivo = atterraggio del ritorno (rientro a casa) — oppure, se hai scelto "solo andata", atterraggio dell'unica tratta. Filtro preciso solo su risultati Duffel; su Travelpayouts viene ignorato (l'API non fornisce l'orario, solo la data).</div>
+        <div class="dual-slider-labels">
+          <span class="mono" id="arriveTimeMinLabel">00:00</span>
+          <span class="mono" id="arriveTimeMaxLabel">23:59</span>
+        </div>
+        <div class="hint">Partenza = decollo dell'andata. Arrivo = atterraggio del ritorno (rientro a casa) — oppure, se "solo andata", atterraggio dell'unica tratta. Filtro preciso solo su risultati Duffel/Google Flights; su Travelpayouts viene ignorato (l'API non fornisce l'orario, solo la data).</div>
       </div>
     </div>
   </section>
@@ -157,11 +202,11 @@
       <div class="row2">
         <div class="field">
           <label for="stopsOut">Scali massimi andata</label>
-          <input type="number" id="stopsOut" min="0" max="3" value="1">
+          <input type="number" id="stopsOut" min="0" max="3" value="0">
         </div>
         <div class="field">
           <label for="stopsRet">Scali massimi ritorno</label>
-          <input type="number" id="stopsRet" min="0" max="3" value="1">
+          <input type="number" id="stopsRet" min="0" max="3" value="0">
         </div>
       </div>
     </div>
@@ -231,6 +276,55 @@ function parseAirports(str){
   return str.split(',').map(s=>s.trim().toUpperCase()).filter(Boolean);
 }
 
+// Slider a doppio cursore per le fasce orarie. Restituisce {from, to} in
+// formato "HH:MM" leggendo i due <input type=range> del gruppo indicato.
+function minutesToHHMM(min){
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+}
+
+function setupDualSlider(prefix){
+  const minInput = $(prefix + 'Min');
+  const maxInput = $(prefix + 'Max');
+  const fill = $(prefix + 'Fill');
+  const minLabel = $(prefix + 'MinLabel');
+  const maxLabel = $(prefix + 'MaxLabel');
+
+  function update(){
+    let minVal = parseInt(minInput.value, 10);
+    let maxVal = parseInt(maxInput.value, 10);
+    // Impedisce ai due cursori di incrociarsi
+    if (minVal > maxVal){
+      if (document.activeElement === minInput){ maxVal = minVal; maxInput.value = maxVal; }
+      else { minVal = maxVal; minInput.value = minVal; }
+    }
+    const minPct = (minVal / 1439) * 100;
+    const maxPct = (maxVal / 1439) * 100;
+    fill.style.left = minPct + '%';
+    fill.style.width = (maxPct - minPct) + '%';
+    minLabel.textContent = minutesToHHMM(minVal);
+    maxLabel.textContent = minutesToHHMM(maxVal);
+  }
+
+  minInput.addEventListener('input', update);
+  maxInput.addEventListener('input', update);
+  update();
+
+  return {
+    getRange: () => ({ from: minutesToHHMM(parseInt(minInput.value,10)), to: minutesToHHMM(parseInt(maxInput.value,10)) }),
+    setRange: (from, to) => {
+      const toMin = (hhmm) => { const [h,m] = (hhmm||'00:00').split(':').map(Number); return h*60+m; };
+      minInput.value = from ? toMin(from) : 0;
+      maxInput.value = to ? toMin(to) : 1439;
+      update();
+    }
+  };
+}
+
+const departTimeSlider = setupDualSlider('departTime');
+const arriveTimeSlider = setupDualSlider('arriveTime');
+
 $('swapAirportsBtn').addEventListener('click', () => {
   const originVal = $('origin').value;
   $('origin').value = $('destination').value;
@@ -257,6 +351,20 @@ function applyOneWayToggle(){
   $('returnDateField').style.display = oneWay ? 'none' : 'block';
 }
 $('oneWay').addEventListener('change', applyOneWayToggle);
+
+// La data di rientro non può essere precedente alla data di andata: il
+// selettore di sistema propone quindi le date a partire da quella scelta,
+// invece che dalla data odierna.
+function syncReturnDateMin(){
+  const departVal = $('departDate').value;
+  if (departVal){
+    $('returnDate').min = departVal;
+    if ($('returnDate').value && $('returnDate').value < departVal){
+      $('returnDate').value = departVal;
+    }
+  }
+}
+$('departDate').addEventListener('change', syncReturnDateMin);
 
 function renderStatus(config, lastRun){
   const active = !!(config && config.active);
@@ -297,12 +405,11 @@ function fillForm(c){
   $('destination').value = (c.destinationAirports||[]).join(', ');
   $('departDate').value = c.departDate || '';
   $('returnDate').value = c.returnDate || '';
-  $('departTimeFrom').value = c.departTimeFrom || '';
-  $('departTimeTo').value = c.departTimeTo || '';
-  $('arriveTimeFrom').value = c.arriveTimeFrom || '';
-  $('arriveTimeTo').value = c.arriveTimeTo || '';
-  $('stopsOut').value = c.maxStopsOutbound ?? 1;
-  $('stopsRet').value = c.maxStopsReturn ?? 1;
+  syncReturnDateMin();
+  departTimeSlider.setRange(c.departTimeFrom, c.departTimeTo);
+  arriveTimeSlider.setRange(c.arriveTimeFrom, c.arriveTimeTo);
+  $('stopsOut').value = c.maxStopsOutbound ?? 0;
+  $('stopsRet').value = c.maxStopsReturn ?? 0;
   $('attempts').value = c.attemptsPerDay || 4;
   $('email').value = c.email || '';
   $('oneWay').checked = !c.returnDate;
@@ -329,10 +436,10 @@ function collectCurrentParams(){
     destinationAirports: parseAirports($('destination').value),
     departDate: $('departDate').value,
     returnDate: oneWay ? '' : $('returnDate').value,
-    departTimeFrom: $('departTimeFrom').value,
-    departTimeTo: $('departTimeTo').value,
-    arriveTimeFrom: $('arriveTimeFrom').value,
-    arriveTimeTo: $('arriveTimeTo').value,
+    departTimeFrom: departTimeSlider.getRange().from,
+    departTimeTo: departTimeSlider.getRange().to,
+    arriveTimeFrom: arriveTimeSlider.getRange().from,
+    arriveTimeTo: arriveTimeSlider.getRange().to,
     maxStopsOutbound: parseInt($('stopsOut').value, 10),
     maxStopsReturn: parseInt($('stopsRet').value, 10),
     includeGoogleFlights: $('includeGoogleFlights').checked,
@@ -443,10 +550,10 @@ $('configForm').addEventListener('submit', async (e) => {
     destinationAirports: parseAirports($('destination').value),
     departDate: $('departDate').value,
     returnDate: $('oneWay').checked ? '' : $('returnDate').value,
-    departTimeFrom: $('departTimeFrom').value,
-    departTimeTo: $('departTimeTo').value,
-    arriveTimeFrom: $('arriveTimeFrom').value,
-    arriveTimeTo: $('arriveTimeTo').value,
+    departTimeFrom: departTimeSlider.getRange().from,
+    departTimeTo: departTimeSlider.getRange().to,
+    arriveTimeFrom: arriveTimeSlider.getRange().from,
+    arriveTimeTo: arriveTimeSlider.getRange().to,
     maxStopsOutbound: parseInt($('stopsOut').value, 10),
     maxStopsReturn: parseInt($('stopsRet').value, 10),
     attemptsPerDay: parseInt($('attempts').value, 10),
