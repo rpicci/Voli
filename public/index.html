@@ -111,11 +111,8 @@
     <h2>Date</h2>
     <div class="card">
       <div class="field">
-        <label>Finestra data di partenza</label>
-        <div class="row2">
-          <input type="date" id="departDateFrom" required>
-          <input type="date" id="departDateTo" required>
-        </div>
+        <label for="departDate">Data di partenza</label>
+        <input type="date" id="departDate" required>
       </div>
       <div class="field">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
@@ -124,11 +121,8 @@
         </label>
       </div>
       <div class="field" id="returnDateField">
-        <label>Finestra data di rientro</label>
-        <div class="row2">
-          <input type="date" id="returnDateFrom">
-          <input type="date" id="returnDateTo">
-        </div>
+        <label for="returnDate">Data di rientro</label>
+        <input type="date" id="returnDate">
       </div>
     </div>
   </section>
@@ -291,10 +285,8 @@ function fillForm(c){
   if (!c) return;
   $('origin').value = (c.originAirports||[]).join(', ');
   $('destination').value = (c.destinationAirports||[]).join(', ');
-  $('departDateFrom').value = c.departDateFrom || '';
-  $('departDateTo').value = c.departDateTo || '';
-  $('returnDateFrom').value = c.returnDateFrom || '';
-  $('returnDateTo').value = c.returnDateTo || '';
+  $('departDate').value = c.departDate || '';
+  $('returnDate').value = c.returnDate || '';
   $('departTimeFrom').value = c.departTimeFrom || '';
   $('departTimeTo').value = c.departTimeTo || '';
   $('arriveTimeFrom').value = c.arriveTimeFrom || '';
@@ -303,7 +295,7 @@ function fillForm(c){
   $('stopsRet').value = c.maxStopsReturn ?? 1;
   $('attempts').value = c.attemptsPerDay || 4;
   $('email').value = c.email || '';
-  $('oneWay').checked = !c.returnDateFrom;
+  $('oneWay').checked = !c.returnDate;
   applyOneWayToggle();
   $('includeGoogleFlightsScheduled').checked = !!c.includeGoogleFlightsScheduled;
   updateQuotaEstimate();
@@ -325,10 +317,8 @@ function collectCurrentParams(){
   return {
     originAirports: parseAirports($('origin').value),
     destinationAirports: parseAirports($('destination').value),
-    departDateFrom: $('departDateFrom').value,
-    departDateTo: $('departDateTo').value,
-    returnDateFrom: oneWay ? '' : $('returnDateFrom').value,
-    returnDateTo: oneWay ? '' : $('returnDateTo').value,
+    departDate: $('departDate').value,
+    returnDate: oneWay ? '' : $('returnDate').value,
     departTimeFrom: $('departTimeFrom').value,
     departTimeTo: $('departTimeTo').value,
     arriveTimeFrom: $('arriveTimeFrom').value,
@@ -350,8 +340,8 @@ function renderResults(results, errors, criteria){
   if (criteria){
     const fonti = (criteria.fontiInterrogate || []).join(' + ') || 'nessuna configurata';
     criteriaBox.innerHTML = `Criteri usati: ${criteria.roundTrip ? 'andata+ritorno' : 'sola andata'}` +
-      ` · andata ${criteria.departDateFrom}→${criteria.departDateTo} (max ${criteria.maxStopsOutbound} scali)` +
-      (criteria.roundTrip ? ` · ritorno ${criteria.returnDateFrom}→${criteria.returnDateTo} (max ${criteria.maxStopsReturn} scali)` : '') +
+      ` · andata ${criteria.departDate} (max ${criteria.maxStopsOutbound} scali)` +
+      (criteria.roundTrip ? ` · ritorno ${criteria.returnDate} (max ${criteria.maxStopsReturn} scali)` : '') +
       ` · fonti interrogate: ${fonti}`;
     criteriaBox.style.display = 'block';
   } else {
@@ -392,8 +382,8 @@ function renderResults(results, errors, criteria){
 }
 
 $('searchNowBtn').addEventListener('click', async () => {
-  if (!$('oneWay').checked && (!$('returnDateFrom').value || !$('returnDateTo').value)){
-    showToast('Inserisci la finestra data di rientro, oppure spunta "Solo andata".');
+  if (!$('oneWay').checked && !$('returnDate').value){
+    showToast('Inserisci la data di rientro, oppure spunta "Solo andata".');
     return;
   }
 
@@ -425,18 +415,16 @@ $('searchNowBtn').addEventListener('click', async () => {
 $('configForm').addEventListener('submit', async (e) => {
   e.preventDefault();
 
-  if (!$('oneWay').checked && (!$('returnDateFrom').value || !$('returnDateTo').value)){
-    showToast('Inserisci la finestra data di rientro, oppure spunta "Solo andata".');
+  if (!$('oneWay').checked && !$('returnDate').value){
+    showToast('Inserisci la data di rientro, oppure spunta "Solo andata".');
     return;
   }
 
   const payload = {
     originAirports: parseAirports($('origin').value),
     destinationAirports: parseAirports($('destination').value),
-    departDateFrom: $('departDateFrom').value,
-    departDateTo: $('departDateTo').value,
-    returnDateFrom: $('oneWay').checked ? '' : $('returnDateFrom').value,
-    returnDateTo: $('oneWay').checked ? '' : $('returnDateTo').value,
+    departDate: $('departDate').value,
+    returnDate: $('oneWay').checked ? '' : $('returnDate').value,
     departTimeFrom: $('departTimeFrom').value,
     departTimeTo: $('departTimeTo').value,
     arriveTimeFrom: $('arriveTimeFrom').value,
