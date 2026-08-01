@@ -51,8 +51,8 @@ export default async () => {
             apiKey: DUFFEL_API_KEY,
             origin,
             destination,
-            departDateFrom: config.departDateFrom,
-            returnDateFrom: config.returnDateFrom,
+            departDateFrom: config.departDate,
+            returnDateFrom: config.returnDate,
             maxStopsOutbound: config.maxStopsOutbound,
             maxStopsReturn: config.maxStopsReturn,
             departTimeFrom: config.departTimeFrom,
@@ -72,10 +72,10 @@ export default async () => {
             token: TRAVELPAYOUTS_TOKEN,
             origin,
             destination,
-            departDateFrom: config.departDateFrom,
-            departDateTo: config.departDateTo,
-            returnDateFrom: config.returnDateFrom,
-            returnDateTo: config.returnDateTo,
+            departDateFrom: config.departDate,
+            departDateTo: config.departDate,
+            returnDateFrom: config.returnDate,
+            returnDateTo: config.returnDate,
             maxStops: config.maxStopsOutbound,
           });
           allResults.push(...r);
@@ -90,8 +90,8 @@ export default async () => {
             apiKey: RAPIDAPI_KEY,
             origin,
             destination,
-            departDateFrom: config.departDateFrom,
-            returnDateFrom: config.returnDateFrom,
+            departDateFrom: config.departDate,
+            returnDateFrom: config.returnDate,
             maxStopsOutbound: config.maxStopsOutbound,
           });
           allResults.push(...r);

@@ -18,8 +18,7 @@ export default async (req) => {
   const required = [
     "originAirports",
     "destinationAirports",
-    "departDateFrom",
-    "departDateTo",
+    "departDate",
     "email",
     "attemptsPerDay",
   ];
@@ -27,14 +26,6 @@ export default async (req) => {
   if (missing.length) {
     return new Response(
       JSON.stringify({ error: `Campi mancanti: ${missing.join(", ")}` }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
-    );
-  }
-
-  // Date di rientro obbligatorie solo se non è una ricerca "sola andata"
-  if (config.returnDateFrom && !config.returnDateTo) {
-    return new Response(
-      JSON.stringify({ error: "Manca la fine della finestra data di rientro" }),
       { status: 400, headers: { "Content-Type": "application/json" } }
     );
   }

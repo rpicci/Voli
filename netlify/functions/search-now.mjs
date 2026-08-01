@@ -17,7 +17,7 @@ export default async (req) => {
     });
   }
 
-  const required = ["originAirports", "destinationAirports", "departDateFrom", "departDateTo"];
+  const required = ["originAirports", "destinationAirports", "departDate"];
   const missing = required.filter((k) => !params[k] || params[k].length === 0);
   if (missing.length) {
     return new Response(
@@ -50,8 +50,8 @@ export default async (req) => {
             apiKey: DUFFEL_API_KEY,
             origin,
             destination,
-            departDateFrom: params.departDateFrom,
-            returnDateFrom: params.returnDateFrom,
+            departDateFrom: params.departDate,
+            returnDateFrom: params.returnDate,
             maxStopsOutbound: params.maxStopsOutbound,
             maxStopsReturn: params.maxStopsReturn,
             departTimeFrom: params.departTimeFrom,
@@ -71,10 +71,10 @@ export default async (req) => {
             token: TRAVELPAYOUTS_TOKEN,
             origin,
             destination,
-            departDateFrom: params.departDateFrom,
-            departDateTo: params.departDateTo,
-            returnDateFrom: params.returnDateFrom,
-            returnDateTo: params.returnDateTo,
+            departDateFrom: params.departDate,
+            departDateTo: params.departDate,
+            returnDateFrom: params.returnDate,
+            returnDateTo: params.returnDate,
             maxStops: params.maxStopsOutbound,
           });
           allResults.push(...r);
@@ -89,8 +89,8 @@ export default async (req) => {
             apiKey: RAPIDAPI_KEY,
             origin,
             destination,
-            departDateFrom: params.departDateFrom,
-            returnDateFrom: params.returnDateFrom,
+            departDateFrom: params.departDate,
+            returnDateFrom: params.returnDate,
             maxStopsOutbound: params.maxStopsOutbound,
           });
           allResults.push(...r);
@@ -104,11 +104,9 @@ export default async (req) => {
   allResults.sort((a, b) => a.price - b.price);
 
   const criteria = {
-    roundTrip: !!params.returnDateFrom,
-    departDateFrom: params.departDateFrom,
-    departDateTo: params.departDateTo,
-    returnDateFrom: params.returnDateFrom || null,
-    returnDateTo: params.returnDateTo || null,
+    roundTrip: !!params.returnDate,
+    departDate: params.departDate,
+    returnDate: params.returnDate || null,
     maxStopsOutbound: params.maxStopsOutbound,
     maxStopsReturn: params.maxStopsReturn,
     fontiInterrogate: [
