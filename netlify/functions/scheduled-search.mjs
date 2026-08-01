@@ -93,6 +93,10 @@ export default async () => {
             departDateFrom: config.departDate,
             returnDateFrom: config.returnDate,
             maxStopsOutbound: config.maxStopsOutbound,
+            departTimeFrom: config.departTimeFrom,
+            departTimeTo: config.departTimeTo,
+            arriveTimeFrom: config.arriveTimeFrom,
+            arriveTimeTo: config.arriveTimeTo,
           });
           allResults.push(...r);
         } catch (err) {

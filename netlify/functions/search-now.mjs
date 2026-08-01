@@ -92,6 +92,10 @@ export default async (req) => {
             departDateFrom: params.departDate,
             returnDateFrom: params.returnDate,
             maxStopsOutbound: params.maxStopsOutbound,
+            departTimeFrom: params.departTimeFrom,
+            departTimeTo: params.departTimeTo,
+            arriveTimeFrom: params.arriveTimeFrom,
+            arriveTimeTo: params.arriveTimeTo,
           });
           allResults.push(...r);
         } catch (err) {
