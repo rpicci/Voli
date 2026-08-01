@@ -93,6 +93,7 @@ export default async () => {
             departDateFrom: config.departDate,
             returnDateFrom: config.returnDate,
             maxStopsOutbound: config.maxStopsOutbound,
+            maxStopsReturn: config.maxStopsReturn,
             departTimeFrom: config.departTimeFrom,
             departTimeTo: config.departTimeTo,
             arriveTimeFrom: config.arriveTimeFrom,

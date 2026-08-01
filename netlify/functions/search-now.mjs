@@ -92,6 +92,7 @@ export default async (req) => {
             departDateFrom: params.departDate,
             returnDateFrom: params.returnDate,
             maxStopsOutbound: params.maxStopsOutbound,
+            maxStopsReturn: params.maxStopsReturn,
             departTimeFrom: params.departTimeFrom,
             departTimeTo: params.departTimeTo,
             arriveTimeFrom: params.arriveTimeFrom,
