@@ -100,6 +100,9 @@
         <label for="origin">Aeroporti di partenza (codici IATA, separati da virgola)</label>
         <input type="text" id="origin" placeholder="MXP, LIN, BGY" required>
       </div>
+      <div class="field" style="text-align:center;margin-bottom:8px;">
+        <button type="button" id="swapAirportsBtn" class="btn-secondary" style="width:auto;padding:8px 16px;border-radius:20px;border:1px solid var(--line);background:var(--panel-2);color:var(--cyan);font-family:'IBM Plex Mono',monospace;font-size:13px;cursor:pointer;">⇅ Inverti andata/ritorno</button>
+      </div>
       <div class="field">
         <label for="destination">Aeroporti di arrivo</label>
         <input type="text" id="destination" placeholder="JFK, EWR" required>
@@ -227,6 +230,13 @@ function showToast(msg){
 function parseAirports(str){
   return str.split(',').map(s=>s.trim().toUpperCase()).filter(Boolean);
 }
+
+$('swapAirportsBtn').addEventListener('click', () => {
+  const originVal = $('origin').value;
+  $('origin').value = $('destination').value;
+  $('destination').value = originVal;
+  updateQuotaEstimate();
+});
 
 function updateQuotaEstimate(){
   const origins = parseAirports($('origin').value);
@@ -390,6 +400,14 @@ $('searchNowBtn').addEventListener('click', async () => {
   const btn = $('searchNowBtn');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>Ricerca in corso…';
+
+  // Svuota subito i risultati della ricerca precedente, così non restano
+  // visibili (e non sembrano appartenere alla nuova ricerca) durante l'attesa.
+  $('resultsList').innerHTML = '';
+  $('resultsMeta').textContent = '';
+  $('resultsMeta').className = '';
+  $('resultsCriteria').style.display = 'none';
+  $('resultsSection').style.display = 'block';
 
   try{
     const res = await fetch('/.netlify/functions/search-now', {
