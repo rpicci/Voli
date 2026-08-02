@@ -16,7 +16,7 @@ export default async () => {
     return new Response("Ricerche disattivate (flag stop)", { status: 200 });
   }
 
-  const { due, currentSlotKey, slots } = isDueNow(config.attemptsPerDay, config.lastRunSlotKey);
+  const { due, currentSlotKey, slots } = isDueNow(config.attemptsPerDay, config.lastRunSlotKey, config.startHour);
 
   if (!due) {
     return new Response(
@@ -24,6 +24,14 @@ export default async () => {
       { status: 200 }
     );
   }
+
+  // Segniamo SUBITO questo slot come "in corso", prima di fare qualunque
+  // ricerca (che può durare 10+ secondi). Se Netlify attiva la funzione due
+  // volte quasi in contemporanea (comportamento noto degli scheduler
+  // serverless), la seconda esecuzione trova già lo slot marcato e si ferma
+  // qui, invece di rifare tutto e mandare un'email doppia.
+  config.lastRunSlotKey = currentSlotKey;
+  await configStore.setJSON("config", config);
 
   const TRAVELPAYOUTS_TOKEN = process.env.TRAVELPAYOUTS_TOKEN;
   const DUFFEL_API_KEY = process.env.DUFFEL_API_KEY;
@@ -110,9 +118,6 @@ export default async () => {
   }
 
   allResults.sort((a, b) => a.price - b.price);
-
-  config.lastRunSlotKey = currentSlotKey;
-  await configStore.setJSON("config", config);
 
   let emailError = null;
 
