@@ -123,6 +123,10 @@
     <span class="board-label">Voli trovati (ultima esecuzione)</span>
     <span class="board-value mono" id="lastCountValue">—</span>
   </div>
+  <div class="board-row" id="emailErrorRow" style="display:none;">
+    <span class="board-label" style="color:var(--red);">⚠️ Invio email fallito</span>
+    <span class="board-value mono" id="emailErrorValue" style="color:var(--red);">—</span>
+  </div>
 </div>
 
 <form id="configForm">
@@ -396,6 +400,14 @@ function renderStatus(config, lastRun){
     const d = new Date(lastRun.ranAt);
     $('lastRunValue').textContent = d.toLocaleString('it-IT', { dateStyle:'short', timeStyle:'short' });
     $('lastCountValue').textContent = lastRun.resultsCount ?? '—';
+
+    const errorRow = $('emailErrorRow');
+    if (lastRun.emailError){
+      errorRow.style.display = 'flex';
+      $('emailErrorValue').textContent = lastRun.emailError;
+    } else {
+      errorRow.style.display = 'none';
+    }
   }
 }
 
