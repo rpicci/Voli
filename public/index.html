@@ -180,7 +180,7 @@
         </div>
       </div>
       <div class="field">
-        <label>Orario di arrivo al rientro</label>
+        <label>Orario di partenza del ritorno</label>
         <div class="dual-slider" id="arriveTimeSliderBox">
           <div class="dual-slider-track"></div>
           <div class="dual-slider-fill" id="arriveTimeFill"></div>
@@ -191,7 +191,7 @@
           <span class="mono" id="arriveTimeMinLabel">00:00</span>
           <span class="mono" id="arriveTimeMaxLabel">23:59</span>
         </div>
-        <div class="hint">Partenza = decollo dell'andata. Arrivo = atterraggio del ritorno (rientro a casa) — oppure, se "solo andata", atterraggio dell'unica tratta. Filtro preciso solo su risultati Duffel/Google Flights; su Travelpayouts viene ignorato (l'API non fornisce l'orario, solo la data).</div>
+        <div class="hint">Partenza = decollo dell'andata. Il secondo cursore = decollo del ritorno — oppure, se "solo andata", atterraggio dell'unica tratta. Filtro preciso solo su risultati Duffel/Google Flights; su Travelpayouts viene ignorato (l'API non fornisce l'orario, solo la data).</div>
       </div>
     </div>
   </section>
@@ -487,7 +487,7 @@ function renderResults(results, errors, criteria){
       <div>
         <div class="result-route">${r.origin} → ${r.destination}</div>
         <div class="result-meta mono">Andata: ${r.departDate}${r.departTime ? ' ' + r.departTime : ''}${r.arriveTime ? ' → ' + r.arriveTime : ''} · ${r.stops ?? '?'} scali${r.airline ? ' · ' + r.airline : ''}${r.flightNumber ? ' ' + r.flightNumber : ''}</div>
-        ${r.returnDate ? `<div class="result-meta mono">Ritorno: ${r.returnDate}${r.returnArriveTime ? ' → arrivo ' + r.returnArriveTime : ''}${r.returnStops != null ? ' · ' + r.returnStops + ' scali' : ''}${r.returnAirline ? ' · ' + r.returnAirline : ''}${r.returnFlightNumber ? ' ' + r.returnFlightNumber : ''}</div>` : ''}
+        ${r.returnDate ? `<div class="result-meta mono">Ritorno: ${r.returnDate}${r.returnDepartTime ? ' ' + r.returnDepartTime : ''}${r.returnArriveTime ? ' → arrivo ' + r.returnArriveTime : ''}${r.returnStops != null ? ' · ' + r.returnStops + ' scali' : ''}${r.returnAirline ? ' · ' + r.returnAirline : ''}${r.returnFlightNumber ? ' ' + r.returnFlightNumber : ''}</div>` : ''}
         <div class="result-meta mono">${r.source}</div>
         ${r.note ? `<div class="result-note">⚠️ ${r.note}</div>` : ''}
         ${r.bookingUrl ? `<a class="result-link" href="${r.bookingUrl}" target="_blank" rel="noopener">Vedi prenotazione →</a>` : ''}
