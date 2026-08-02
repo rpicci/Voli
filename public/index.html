@@ -222,7 +222,11 @@
       <div class="field">
         <label for="attempts">Numero tentativi al giorno</label>
         <input type="number" id="attempts" min="1" max="24" value="4" required>
-        <div class="hint">Distribuiti a intervalli uguali dalle 00:00 (ora Italia). Es. 4 → 00:00, 06:00, 12:00, 18:00.</div>
+        <div class="hint">Distribuiti a intervalli uguali a partire dall'ora scelta sotto (ora Italia). Es. 4 tentativi da 08:00 → 08:00, 14:00, 20:00, 02:00.</div>
+      </div>
+      <div class="field">
+        <label for="startHour">Ora di partenza (0–23, ora Italia)</label>
+        <input type="number" id="startHour" min="0" max="23" value="0" required>
       </div>
       <div class="field">
         <label for="email">Email per i risultati</label>
@@ -391,8 +395,9 @@ function renderStatus(config, lastRun){
 
   if (config && config.attemptsPerDay){
     const n = Math.max(1, Math.min(24, Math.round(config.attemptsPerDay)));
+    const startH = Math.max(0, Math.min(23, Math.round(config.startHour || 0)));
     const step = 24 / n;
-    const slots = [...new Set(Array.from({length:n}, (_,i)=> Math.round(i*step) % 24))].sort((a,b)=>a-b);
+    const slots = [...new Set(Array.from({length:n}, (_,i)=> Math.round(startH + i*step) % 24))].sort((a,b)=>a-b);
     $('slotsValue').textContent = slots.map(h => String(h).padStart(2,'0')+':00').join(' · ');
   }
 
@@ -423,6 +428,7 @@ function fillForm(c){
   $('stopsOut').value = c.maxStopsOutbound ?? 0;
   $('stopsRet').value = c.maxStopsReturn ?? 0;
   $('attempts').value = c.attemptsPerDay || 4;
+  $('startHour').value = c.startHour ?? 0;
   $('email').value = c.email || '';
   $('oneWay').checked = !c.returnDate;
   applyOneWayToggle();
@@ -569,6 +575,7 @@ $('configForm').addEventListener('submit', async (e) => {
     maxStopsOutbound: parseInt($('stopsOut').value, 10),
     maxStopsReturn: parseInt($('stopsRet').value, 10),
     attemptsPerDay: parseInt($('attempts').value, 10),
+    startHour: parseInt($('startHour').value, 10),
     email: $('email').value,
     active: currentActive,
     includeGoogleFlightsScheduled: $('includeGoogleFlightsScheduled').checked,
