@@ -111,38 +111,51 @@ export default async () => {
 
   allResults.sort((a, b) => a.price - b.price);
 
+  config.lastRunSlotKey = currentSlotKey;
+  await configStore.setJSON("config", config);
+
+  let emailError = null;
+
+  if (RESEND_API_KEY && EMAIL_FROM && config.email) {
+    try {
+      if (allResults.length > 0) {
+        await sendResultsEmail({
+          apiKey: RESEND_API_KEY,
+          from: EMAIL_FROM,
+          to: config.email,
+          results: allResults,
+          searchLabel: `${config.originAirports.join("/")} → ${config.destinationAirports.join("/")}`,
+        });
+      } else if (errors.length > 0) {
+        await sendStatusEmail({
+          apiKey: RESEND_API_KEY,
+          from: EMAIL_FROM,
+          to: config.email,
+          subject: "⚠️ Flight Watch — errore nella ricerca",
+          message: `La ricerca di oggi ha incontrato errori: ${errors.join("; ")}`,
+        });
+      }
+    } catch (err) {
+      // Non facciamo fallire l'intera funzione se l'invio email si rompe
+      // (dominio non verificato, chiave non valida, ecc.): la ricerca resta
+      // comunque salvata e visibile nel tabellone, con l'errore email
+      // segnalato esplicitamente invece di sparire in silenzio.
+      emailError = err.message;
+    }
+  }
+
+  // Aggiorniamo lo stato salvato con l'esito dell'invio email, così è
+  // visibile anche dal tabellone in pagina, non solo nei log della funzione.
   await resultsStore.setJSON("last-run", {
     ranAt: new Date().toISOString(),
     slotKey: currentSlotKey,
     resultsCount: allResults.length,
     errors,
+    emailError,
   });
 
-  config.lastRunSlotKey = currentSlotKey;
-  await configStore.setJSON("config", config);
-
-  if (RESEND_API_KEY && EMAIL_FROM && config.email) {
-    if (allResults.length > 0) {
-      await sendResultsEmail({
-        apiKey: RESEND_API_KEY,
-        from: EMAIL_FROM,
-        to: config.email,
-        results: allResults,
-        searchLabel: `${config.originAirports.join("/")} → ${config.destinationAirports.join("/")}`,
-      });
-    } else if (errors.length > 0) {
-      await sendStatusEmail({
-        apiKey: RESEND_API_KEY,
-        from: EMAIL_FROM,
-        to: config.email,
-        subject: "⚠️ Flight Watch — errore nella ricerca",
-        message: `La ricerca di oggi ha incontrato errori: ${errors.join("; ")}`,
-      });
-    }
-  }
-
   return new Response(
-    JSON.stringify({ ok: true, found: allResults.length, errors }),
+    JSON.stringify({ ok: true, found: allResults.length, errors, emailError }),
     { status: 200, headers: { "Content-Type": "application/json" } }
   );
 };
