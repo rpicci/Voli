@@ -97,6 +97,29 @@
   .dual-slider-labels{
     display:flex;justify-content:space-between;font-size:12px;color:var(--cyan);
   }
+
+  /* Tratte monitorate */
+  .route-card{
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:16px;margin-bottom:14px;position:relative;
+  }
+  .route-card-title{
+    font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;
+    color:var(--amber);margin-bottom:12px;
+  }
+  .weekday-picker{display:flex;flex-wrap:wrap;gap:8px;}
+  .weekday-picker label{
+    display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text);
+    background:var(--panel-2);border:1px solid var(--line);border-radius:6px;
+    padding:6px 9px;cursor:pointer;margin-bottom:0;
+  }
+  .weekday-picker input{width:auto;margin:0;}
+  .remove-route-btn{
+    background:transparent;border:1px solid var(--red);color:var(--red);
+    border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;
+    margin-top:12px;
+  }
+  .route-nights-field{display:none;}
 </style>
 </head>
 <body>
@@ -131,7 +154,22 @@
 
 <form id="configForm">
   <section>
-    <h2>Aeroporti</h2>
+    <h2>Tratte monitorate (ricerca automatica)</h2>
+    <div class="hint" style="margin-bottom:14px;">Fino a 3 tratte, ciascuna con il proprio range di date, giorni della settimana e durata del soggiorno. Lo scheduler controlla tutte le combinazioni nell'unico slot giornaliero configurato più sotto.</div>
+    <div id="routesContainer"></div>
+    <button type="button" id="addRouteBtn" class="btn-secondary">+ Aggiungi tratta</button>
+    <div class="hint" id="routesQuotaEstimate" style="margin-top:10px;"></div>
+    <div style="height:14px;"></div>
+    <button type="submit" class="btn btn-primary">Salva configurazione</button>
+  </section>
+
+  <section>
+    <h2 style="color:var(--text-dim);">Test rapido on-demand (singola data)</h2>
+    <div class="hint" style="margin-bottom:14px;">Questi campi servono solo per il bottone "Cerca subito" più sotto — una verifica veloce su una data precisa, indipendente dalle tratte monitorate sopra.</div>
+  </section>
+
+  <section>
+    <h2>Aeroporti (test on-demand)</h2>
     <div class="card">
       <div class="field">
         <label for="origin">Aeroporti di partenza (codici IATA, separati da virgola)</label>
@@ -237,14 +275,12 @@
           <input type="checkbox" id="includeGoogleFlightsScheduled" style="width:auto;">
           Includi Google Flights anche nella ricerca automatica
         </label>
-        <div class="hint" id="quotaEstimate">Copre anche Ryanair/Wizz Air, ma consuma la quota gratuita (150 richieste/mese) — stima: —</div>
+        <div class="hint">Copre anche Ryanair/Wizz Air. La stima della quota consumata è mostrata nella sezione "Tratte monitorate" in cima alla pagina.</div>
       </div>
     </div>
   </section>
 
   <section>
-    <button type="submit" class="btn btn-primary">Salva configurazione</button>
-    <div style="height:10px;"></div>
     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;">
       <input type="checkbox" id="includeGoogleFlights" style="width:auto;">
       Includi anche Google Flights (copre Ryanair/Wizz Air, quota gratuita limitata a 150/mese)
@@ -333,6 +369,177 @@ function setupDualSlider(prefix){
 const departTimeSlider = setupDualSlider('departTime');
 const arriveTimeSlider = setupDualSlider('arriveTime');
 
+// ===== Tratte monitorate =====
+const WEEKDAY_LABELS = [
+  { value: 1, label: 'Lun' }, { value: 2, label: 'Mar' }, { value: 3, label: 'Mer' },
+  { value: 4, label: 'Gio' }, { value: 5, label: 'Ven' }, { value: 6, label: 'Sab' },
+  { value: 0, label: 'Dom' },
+];
+const MAX_ROUTES = 3;
+let routeCount = 0;
+
+function createRouteCard(index){
+  const div = document.createElement('div');
+  div.className = 'route-card';
+  div.dataset.routeIndex = index;
+
+  const weekdayCheckboxes = WEEKDAY_LABELS.map(w =>
+    `<label><input type="checkbox" class="route-weekday" value="${w.value}"> ${w.label}</label>`
+  ).join('');
+
+  div.innerHTML = `
+    <div class="route-card-title">Tratta ${index + 1}</div>
+    <div class="field">
+      <label>Aeroporti di partenza</label>
+      <input type="text" class="route-origin mono" placeholder="FCO">
+    </div>
+    <div class="field">
+      <label>Aeroporti di arrivo</label>
+      <input type="text" class="route-destination mono" placeholder="TFS">
+    </div>
+    <div class="field">
+      <label>Range di date da controllare</label>
+      <div class="row2">
+        <input type="date" class="route-dateFrom">
+        <input type="date" class="route-dateTo">
+      </div>
+    </div>
+    <div class="field">
+      <label>Giorni della settimana (nessuna selezione = tutti)</label>
+      <div class="weekday-picker">${weekdayCheckboxes}</div>
+    </div>
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" class="route-oneway" style="width:auto;">
+        Solo andata (nessun ritorno abbinato)
+      </label>
+    </div>
+    <div class="field route-nights-field">
+      <label>Durata soggiorno (notti) — determina il ritorno abbinato a ogni data</label>
+      <input type="number" class="route-nights" min="1" max="60" value="7">
+    </div>
+    <button type="button" class="remove-route-btn">Rimuovi tratta</button>
+  `;
+
+  const onewayInput = div.querySelector('.route-oneway');
+  const nightsField = div.querySelector('.route-nights-field');
+  const toggleNights = () => { nightsField.style.display = onewayInput.checked ? 'none' : 'block'; };
+  onewayInput.addEventListener('change', () => { toggleNights(); updateRoutesQuotaEstimate(); });
+  toggleNights();
+
+  div.querySelectorAll('.route-origin, .route-destination, .route-dateFrom, .route-dateTo, .route-nights').forEach(el => {
+    el.addEventListener('input', updateRoutesQuotaEstimate);
+  });
+  div.querySelectorAll('.route-weekday').forEach(el => {
+    el.addEventListener('change', updateRoutesQuotaEstimate);
+  });
+
+  div.querySelector('.remove-route-btn').addEventListener('click', () => {
+    div.remove();
+    renumberRoutes();
+    updateAddRouteBtnState();
+    updateRoutesQuotaEstimate();
+  });
+
+  return div;
+}
+
+function renumberRoutes(){
+  const cards = $('routesContainer').querySelectorAll('.route-card');
+  cards.forEach((card, i) => {
+    card.dataset.routeIndex = i;
+    card.querySelector('.route-card-title').textContent = `Tratta ${i + 1}`;
+  });
+  routeCount = cards.length;
+}
+
+function updateAddRouteBtnState(){
+  const cards = $('routesContainer').querySelectorAll('.route-card');
+  $('addRouteBtn').disabled = cards.length >= MAX_ROUTES;
+  $('addRouteBtn').style.opacity = cards.length >= MAX_ROUTES ? '0.5' : '1';
+}
+
+function addRoute(){
+  const cards = $('routesContainer').querySelectorAll('.route-card');
+  if (cards.length >= MAX_ROUTES) return;
+  const card = createRouteCard(cards.length);
+  $('routesContainer').appendChild(card);
+  updateAddRouteBtnState();
+  updateRoutesQuotaEstimate();
+}
+$('addRouteBtn').addEventListener('click', addRoute);
+
+// Riproduce (solo per il conteggio) la stessa logica di lib/dateGeneration.mjs:
+// range di date + giorni della settimana selezionati.
+function countDatePairsClientSide(dateFrom, dateTo, weekdays){
+  if (!dateFrom || !dateTo) return 0;
+  const start = new Date(dateFrom + 'T00:00:00Z');
+  const end = new Date(dateTo + 'T00:00:00Z');
+  if (isNaN(start) || isNaN(end) || start > end) return 0;
+  let count = 0;
+  const selected = weekdays.length > 0 ? weekdays : null;
+  for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)){
+    if (!selected || selected.includes(d.getUTCDay())) count++;
+  }
+  return count;
+}
+
+function collectRoutes(){
+  const cards = [...$('routesContainer').querySelectorAll('.route-card')];
+  return cards.map(card => {
+    const weekdays = [...card.querySelectorAll('.route-weekday:checked')].map(el => parseInt(el.value, 10));
+    return {
+      originAirports: parseAirports(card.querySelector('.route-origin').value),
+      destinationAirports: parseAirports(card.querySelector('.route-destination').value),
+      dateRangeFrom: card.querySelector('.route-dateFrom').value,
+      dateRangeTo: card.querySelector('.route-dateTo').value,
+      weekdays,
+      oneWay: card.querySelector('.route-oneway').checked,
+      nights: parseInt(card.querySelector('.route-nights').value, 10) || 7,
+    };
+  });
+}
+
+function fillRoutes(routes){
+  $('routesContainer').innerHTML = '';
+  const list = Array.isArray(routes) && routes.length > 0 ? routes : [{}];
+  list.slice(0, MAX_ROUTES).forEach((route, i) => {
+    const card = createRouteCard(i);
+    $('routesContainer').appendChild(card);
+    card.querySelector('.route-origin').value = (route.originAirports || []).join(', ');
+    card.querySelector('.route-destination').value = (route.destinationAirports || []).join(', ');
+    card.querySelector('.route-dateFrom').value = route.dateRangeFrom || '';
+    card.querySelector('.route-dateTo').value = route.dateRangeTo || '';
+    (route.weekdays || []).forEach(w => {
+      const cb = card.querySelector(`.route-weekday[value="${w}"]`);
+      if (cb) cb.checked = true;
+    });
+    card.querySelector('.route-oneway').checked = !!route.oneWay;
+    card.querySelector('.route-nights').value = route.nights || 7;
+    card.querySelector('.route-nights-field').style.display = route.oneWay ? 'none' : 'block';
+  });
+  updateAddRouteBtnState();
+  updateRoutesQuotaEstimate();
+}
+
+function updateRoutesQuotaEstimate(){
+  const routes = collectRoutes();
+  const attempts = parseInt($('attempts').value, 10) || 0;
+  let totalCalls = 0;
+  for (const r of routes){
+    const dateCount = countDatePairsClientSide(r.dateRangeFrom, r.dateRangeTo, r.weekdays);
+    const pairCount = (r.originAirports.length || 0) * (r.destinationAirports.length || 0);
+    totalCalls += dateCount * pairCount;
+  }
+  const monthlyEstimate = totalCalls * attempts * 30;
+  const el = $('routesQuotaEstimate');
+  if (!el) return;
+  const over = monthlyEstimate > 150;
+  el.style.color = over ? 'var(--red)' : '';
+  el.textContent = `Se includi Google Flights nello scheduler: stima ~${monthlyEstimate} richieste/mese (quota gratuita 150/mese)${over ? ' ⚠️ probabile superamento quota' : ''}`;
+}
+$('attempts').addEventListener('input', updateRoutesQuotaEstimate);
+
 $('swapAirportsBtn').addEventListener('click', () => {
   const originVal = $('origin').value;
   $('origin').value = $('destination').value;
@@ -340,19 +547,7 @@ $('swapAirportsBtn').addEventListener('click', () => {
   updateQuotaEstimate();
 });
 
-function updateQuotaEstimate(){
-  const origins = parseAirports($('origin').value);
-  const destinations = parseAirports($('destination').value);
-  const pairs = origins.length * destinations.length; // stima semplice, non esclude origin===destination
-  const attempts = parseInt($('attempts').value, 10) || 0;
-  const monthlyEstimate = pairs * attempts * 30;
-  const el = $('quotaEstimate');
-  const over = monthlyEstimate > 150;
-  el.style.color = over ? 'var(--red)' : '';
-  el.textContent = `Copre anche Ryanair/Wizz Air, ma consuma la quota gratuita (150 richieste/mese) — stima: ~${monthlyEstimate}/mese${over ? ' ⚠️ supera la quota gratuita' : ''}`;
-}
-['origin','destination','attempts'].forEach(id => $(id).addEventListener('input', updateQuotaEstimate));
-$('includeGoogleFlightsScheduled').addEventListener('change', updateQuotaEstimate);
+$('includeGoogleFlightsScheduled').addEventListener('change', updateRoutesQuotaEstimate);
 
 function applyOneWayToggle(){
   const oneWay = $('oneWay').checked;
@@ -418,22 +613,16 @@ function renderStatus(config, lastRun){
 
 function fillForm(c){
   if (!c) return;
-  $('origin').value = (c.originAirports||[]).join(', ');
-  $('destination').value = (c.destinationAirports||[]).join(', ');
-  $('departDate').value = c.departDate || '';
-  $('returnDate').value = c.returnDate || '';
-  syncReturnDateMin();
-  departTimeSlider.setRange(c.departTimeFrom, c.departTimeTo);
-  arriveTimeSlider.setRange(c.arriveTimeFrom, c.arriveTimeTo);
+  fillRoutes(c.routes);
   $('stopsOut').value = c.maxStopsOutbound ?? 0;
   $('stopsRet').value = c.maxStopsReturn ?? 0;
   $('attempts').value = c.attemptsPerDay || 4;
   $('startHour').value = c.startHour ?? 0;
   $('email').value = c.email || '';
-  $('oneWay').checked = !c.returnDate;
-  applyOneWayToggle();
+  departTimeSlider.setRange(c.departTimeFrom, c.departTimeTo);
+  arriveTimeSlider.setRange(c.arriveTimeFrom, c.arriveTimeTo);
   $('includeGoogleFlightsScheduled').checked = !!c.includeGoogleFlightsScheduled;
-  updateQuotaEstimate();
+  updateRoutesQuotaEstimate();
 }
 
 async function loadConfig(){
@@ -558,16 +747,20 @@ $('searchNowBtn').addEventListener('click', async () => {
 $('configForm').addEventListener('submit', async (e) => {
   e.preventDefault();
 
-  if (!$('oneWay').checked && !$('returnDate').value){
-    showToast('Inserisci la data di rientro, oppure spunta "Solo andata".');
+  const routes = collectRoutes();
+  if (routes.length === 0){
+    showToast('Aggiungi almeno una tratta da monitorare.');
     return;
+  }
+  for (const [i, r] of routes.entries()){
+    if (r.originAirports.length === 0 || r.destinationAirports.length === 0 || !r.dateRangeFrom || !r.dateRangeTo){
+      showToast(`Tratta ${i+1}: completa aeroporti e range di date.`);
+      return;
+    }
   }
 
   const payload = {
-    originAirports: parseAirports($('origin').value),
-    destinationAirports: parseAirports($('destination').value),
-    departDate: $('departDate').value,
-    returnDate: $('oneWay').checked ? '' : $('returnDate').value,
+    routes,
     departTimeFrom: departTimeSlider.getRange().from,
     departTimeTo: departTimeSlider.getRange().to,
     arriveTimeFrom: arriveTimeSlider.getRange().from,
@@ -623,8 +816,10 @@ if ('serviceWorker' in navigator){
   window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
 }
 
+if ($('routesContainer').children.length === 0){
+  fillRoutes([]);
+}
 loadConfig();
-updateQuotaEstimate();
 </script>
 </body>
 </html>
