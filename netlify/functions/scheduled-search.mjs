@@ -1,5 +1,6 @@
 import { getStore } from "@netlify/blobs";
 import { isDueNow } from "../../lib/scheduling.mjs";
+import { generateDatePairs } from "../../lib/dateGeneration.mjs";
 import { searchCheapFlights } from "../../lib/travelpayouts.mjs";
 import { searchFlights as searchFlightsDuffel } from "../../lib/duffel.mjs";
 import { searchGoogleFlights } from "../../lib/googleflights.mjs";
@@ -25,11 +26,9 @@ export default async () => {
     );
   }
 
-  // Segniamo SUBITO questo slot come "in corso", prima di fare qualunque
-  // ricerca (che può durare 10+ secondi). Se Netlify attiva la funzione due
-  // volte quasi in contemporanea (comportamento noto degli scheduler
-  // serverless), la seconda esecuzione trova già lo slot marcato e si ferma
-  // qui, invece di rifare tutto e mandare un'email doppia.
+  // Segniamo subito lo slot come "in corso" prima di fare qualunque ricerca,
+  // per evitare doppie esecuzioni se Netlify attiva la funzione due volte
+  // quasi in contemporanea (vedi commento storico nel repo).
   config.lastRunSlotKey = currentSlotKey;
   await configStore.setJSON("config", config);
 
@@ -38,82 +37,84 @@ export default async () => {
   const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
   const EMAIL_FROM = process.env.EMAIL_FROM;
-  // A differenza della ricerca on-demand, qui Google Flights va abilitata
-  // esplicitamente nella configurazione salvata (flag persistente), non
-  // ricerca per ricerca — perché lo scheduler gira da solo senza che tu
-  // possa spuntare una checkbox ogni volta.
   const useGoogleFlights = !!config.includeGoogleFlightsScheduled && !!RAPIDAPI_KEY;
+
+  const routes = Array.isArray(config.routes) ? config.routes.slice(0, 3) : [];
 
   const allResults = [];
   const errors = [];
 
-  for (const origin of config.originAirports) {
-    for (const destination of config.destinationAirports) {
-      if (origin === destination) continue;
+  for (const route of routes) {
+    const datePairs = generateDatePairs(route);
 
-      // Interroghiamo entrambe le fonti quando disponibili: Duffel per dati
-      // live affidabili, Travelpayouts anche per Ryanair/Wizz Air (cache).
-      if (DUFFEL_API_KEY) {
-        try {
-          const r = await searchFlightsDuffel({
-            apiKey: DUFFEL_API_KEY,
-            origin,
-            destination,
-            departDateFrom: config.departDate,
-            returnDateFrom: config.returnDate,
-            maxStopsOutbound: config.maxStopsOutbound,
-            maxStopsReturn: config.maxStopsReturn,
-            departTimeFrom: config.departTimeFrom,
-            departTimeTo: config.departTimeTo,
-            arriveTimeFrom: config.arriveTimeFrom,
-            arriveTimeTo: config.arriveTimeTo,
-          });
-          allResults.push(...r);
-        } catch (err) {
-          errors.push(`Duffel ${origin}->${destination}: ${err.message}`);
+    for (const { departDate, returnDate } of datePairs) {
+      for (const origin of route.originAirports) {
+        for (const destination of route.destinationAirports) {
+          if (origin === destination) continue;
+
+          if (DUFFEL_API_KEY) {
+            try {
+              const r = await searchFlightsDuffel({
+                apiKey: DUFFEL_API_KEY,
+                origin,
+                destination,
+                departDateFrom: departDate,
+                returnDateFrom: returnDate,
+                maxStopsOutbound: config.maxStopsOutbound,
+                maxStopsReturn: config.maxStopsReturn,
+                departTimeFrom: config.departTimeFrom,
+                departTimeTo: config.departTimeTo,
+                arriveTimeFrom: config.arriveTimeFrom,
+                arriveTimeTo: config.arriveTimeTo,
+              });
+              allResults.push(...r);
+            } catch (err) {
+              errors.push(`Duffel ${origin}->${destination} ${departDate}: ${err.message}`);
+            }
+          }
+
+          if (TRAVELPAYOUTS_TOKEN) {
+            try {
+              const r = await searchCheapFlights({
+                token: TRAVELPAYOUTS_TOKEN,
+                origin,
+                destination,
+                departDateFrom: departDate,
+                departDateTo: departDate,
+                returnDateFrom: returnDate,
+                returnDateTo: returnDate,
+                maxStops: config.maxStopsOutbound,
+              });
+              allResults.push(...r);
+            } catch (err) {
+              errors.push(`Travelpayouts ${origin}->${destination} ${departDate}: ${err.message}`);
+            }
+          }
+
+          if (useGoogleFlights) {
+            try {
+              const r = await searchGoogleFlights({
+                apiKey: RAPIDAPI_KEY,
+                origin,
+                destination,
+                departDateFrom: departDate,
+                returnDateFrom: returnDate,
+                maxStopsOutbound: config.maxStopsOutbound,
+                maxStopsReturn: config.maxStopsReturn,
+                departTimeFrom: config.departTimeFrom,
+                departTimeTo: config.departTimeTo,
+                arriveTimeFrom: config.arriveTimeFrom,
+                arriveTimeTo: config.arriveTimeTo,
+              });
+              allResults.push(...r);
+            } catch (err) {
+              errors.push(`Google Flights ${origin}->${destination} ${departDate}: ${err.message}`);
+            }
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 300));
         }
       }
-
-      if (TRAVELPAYOUTS_TOKEN) {
-        try {
-          const r = await searchCheapFlights({
-            token: TRAVELPAYOUTS_TOKEN,
-            origin,
-            destination,
-            departDateFrom: config.departDate,
-            departDateTo: config.departDate,
-            returnDateFrom: config.returnDate,
-            returnDateTo: config.returnDate,
-            maxStops: config.maxStopsOutbound,
-          });
-          allResults.push(...r);
-        } catch (err) {
-          errors.push(`Travelpayouts ${origin}->${destination}: ${err.message}`);
-        }
-      }
-
-      if (useGoogleFlights) {
-        try {
-          const r = await searchGoogleFlights({
-            apiKey: RAPIDAPI_KEY,
-            origin,
-            destination,
-            departDateFrom: config.departDate,
-            returnDateFrom: config.returnDate,
-            maxStopsOutbound: config.maxStopsOutbound,
-            maxStopsReturn: config.maxStopsReturn,
-            departTimeFrom: config.departTimeFrom,
-            departTimeTo: config.departTimeTo,
-            arriveTimeFrom: config.arriveTimeFrom,
-            arriveTimeTo: config.arriveTimeTo,
-          });
-          allResults.push(...r);
-        } catch (err) {
-          errors.push(`Google Flights ${origin}->${destination}: ${err.message}`);
-        }
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 300));
     }
   }
 
@@ -124,12 +125,15 @@ export default async () => {
   if (RESEND_API_KEY && EMAIL_FROM && config.email) {
     try {
       if (allResults.length > 0) {
+        const routeLabels = routes
+          .map((r) => `${r.originAirports.join("/")} → ${r.destinationAirports.join("/")}`)
+          .join(" · ");
         await sendResultsEmail({
           apiKey: RESEND_API_KEY,
           from: EMAIL_FROM,
           to: config.email,
           results: allResults,
-          searchLabel: `${config.originAirports.join("/")} → ${config.destinationAirports.join("/")}`,
+          searchLabel: routeLabels,
         });
       } else if (errors.length > 0) {
         await sendStatusEmail({
@@ -141,16 +145,10 @@ export default async () => {
         });
       }
     } catch (err) {
-      // Non facciamo fallire l'intera funzione se l'invio email si rompe
-      // (dominio non verificato, chiave non valida, ecc.): la ricerca resta
-      // comunque salvata e visibile nel tabellone, con l'errore email
-      // segnalato esplicitamente invece di sparire in silenzio.
       emailError = err.message;
     }
   }
 
-  // Aggiorniamo lo stato salvato con l'esito dell'invio email, così è
-  // visibile anche dal tabellone in pagina, non solo nei log della funzione.
   await resultsStore.setJSON("last-run", {
     ranAt: new Date().toISOString(),
     slotKey: currentSlotKey,
