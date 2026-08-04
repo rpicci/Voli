@@ -173,14 +173,14 @@
     <div class="card">
       <div class="field">
         <label for="origin">Aeroporti di partenza (codici IATA, separati da virgola)</label>
-        <input type="text" id="origin" placeholder="MXP, LIN, BGY" required>
+        <input type="text" id="origin" placeholder="MXP, LIN, BGY">
       </div>
       <div class="field" style="text-align:center;margin-bottom:8px;">
         <button type="button" id="swapAirportsBtn" class="btn-secondary" style="width:auto;padding:8px 16px;border-radius:20px;border:1px solid var(--line);background:var(--panel-2);color:var(--cyan);font-family:'IBM Plex Mono',monospace;font-size:13px;cursor:pointer;">⇅ Inverti andata/ritorno</button>
       </div>
       <div class="field">
         <label for="destination">Aeroporti di arrivo</label>
-        <input type="text" id="destination" placeholder="JFK, EWR" required>
+        <input type="text" id="destination" placeholder="JFK, EWR">
       </div>
     </div>
   </section>
@@ -190,7 +190,7 @@
     <div class="card">
       <div class="field">
         <label for="departDate">Data di partenza</label>
-        <input type="date" id="departDate" required>
+        <input type="date" id="departDate">
       </div>
       <div class="field">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
@@ -430,6 +430,18 @@ function createRouteCard(index){
   div.querySelectorAll('.route-origin, .route-destination, .route-dateFrom, .route-dateTo, .route-nights').forEach(el => {
     el.addEventListener('input', updateRoutesQuotaEstimate);
   });
+
+  const dateFromInput = div.querySelector('.route-dateFrom');
+  const dateToInput = div.querySelector('.route-dateTo');
+  dateFromInput.addEventListener('change', () => {
+    if (dateFromInput.value){
+      dateToInput.min = dateFromInput.value;
+      if (dateToInput.value && dateToInput.value < dateFromInput.value){
+        dateToInput.value = dateFromInput.value;
+      }
+    }
+  });
+
   div.querySelectorAll('.route-weekday').forEach(el => {
     el.addEventListener('change', updateRoutesQuotaEstimate);
   });
@@ -510,6 +522,7 @@ function fillRoutes(routes){
     card.querySelector('.route-destination').value = (route.destinationAirports || []).join(', ');
     card.querySelector('.route-dateFrom').value = route.dateRangeFrom || '';
     card.querySelector('.route-dateTo').value = route.dateRangeTo || '';
+    if (route.dateRangeFrom) card.querySelector('.route-dateTo').min = route.dateRangeFrom;
     (route.weekdays || []).forEach(w => {
       const cb = card.querySelector(`.route-weekday[value="${w}"]`);
       if (cb) cb.checked = true;
@@ -569,10 +582,8 @@ function syncReturnDateMin(){
 }
 $('departDate').addEventListener('change', syncReturnDateMin);
 
-function renderStatus(config, lastRun){
-  const active = !!(config && config.active);
+function updateActivePills(active){
   currentActive = active;
-
   for (const id of ['statusPill','statusPill2']){
     const el = $(id);
     el.className = 'status-pill ' + (active ? 'active' : 'stopped');
@@ -587,6 +598,10 @@ function renderStatus(config, lastRun){
     killBtn.textContent = 'Riattiva le ricerche';
     killBtn.classList.add('is-stopped');
   }
+}
+
+function renderStatus(config, lastRun){
+  updateActivePills(!!(config && config.active));
 
   if (config && config.attemptsPerDay){
     const n = Math.max(1, Math.min(24, Math.round(config.attemptsPerDay)));
@@ -706,6 +721,14 @@ function renderResults(results, errors, criteria){
 }
 
 $('searchNowBtn').addEventListener('click', async () => {
+  if (parseAirports($('origin').value).length === 0 || parseAirports($('destination').value).length === 0){
+    showToast('Inserisci aeroporti di partenza e arrivo per il test on-demand.');
+    return;
+  }
+  if (!$('departDate').value){
+    showToast('Inserisci la data di partenza per il test on-demand.');
+    return;
+  }
   if (!$('oneWay').checked && !$('returnDate').value){
     showToast('Inserisci la data di rientro, oppure spunta "Solo andata".');
     return;
@@ -804,9 +827,12 @@ $('killBtn').addEventListener('click', async () => {
       body: JSON.stringify({ active:newActive })
     });
     const data = await res.json();
-    currentActive = data.active;
-    showToast(currentActive ? 'Ricerche riattivate.' : 'Ricerche interrotte.');
-    loadConfig();
+    // Aggiorniamo subito l'interfaccia con la risposta appena ricevuta,
+    // invece di rileggere la configurazione: evita di mostrare per un
+    // istante lo stato vecchio se la lettura successiva non fa in tempo
+    // a vedere il dato appena scritto (richiedeva un secondo click).
+    updateActivePills(data.active);
+    showToast(data.active ? 'Ricerche riattivate.' : 'Ricerche interrotte.');
   }catch(err){
     showToast('Errore di rete.');
   }
