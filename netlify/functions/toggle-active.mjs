@@ -14,6 +14,9 @@ export default async (req) => {
 
   return new Response(JSON.stringify({ ok: true, active: config.active }), {
     status: 200,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+    },
   });
 };

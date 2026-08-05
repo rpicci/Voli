@@ -9,6 +9,9 @@ export default async () => {
 
   return new Response(JSON.stringify({ config, lastRun }), {
     status: 200,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+    },
   });
 };

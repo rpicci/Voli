@@ -42,13 +42,23 @@ export default async (req) => {
     }
   }
 
-  if (typeof config.active !== "boolean") config.active = true;
-
   const store = getStore("flight-watch-config");
+
+  // Il flag attivo/fermo è di competenza esclusiva del bottone dedicato
+  // (toggle-active): "Salva configurazione" non deve mai poterlo
+  // sovrascrivere per sbaglio. Se esiste già una configurazione salvata,
+  // ne preserviamo l'"active" attuale; solo al primissimo salvataggio (nessuna
+  // configurazione precedente) partiamo attivi di default.
+  const existing = await store.get("config", { type: "json" });
+  config.active = existing && typeof existing.active === "boolean" ? existing.active : true;
+
   await store.setJSON("config", config);
 
-  return new Response(JSON.stringify({ ok: true }), {
+  return new Response(JSON.stringify({ ok: true, active: config.active }), {
     status: 200,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+    },
   });
 };
