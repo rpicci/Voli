@@ -642,7 +642,7 @@ function fillForm(c){
 
 async function loadConfig(){
   try{
-    const res = await fetch('/.netlify/functions/get-config');
+    const res = await fetch('/.netlify/functions/get-config', { cache: 'no-store' });
     const { config, lastRun } = await res.json();
     fillForm(config);
     renderStatus(config, lastRun);
@@ -750,7 +750,8 @@ $('searchNowBtn').addEventListener('click', async () => {
     const res = await fetch('/.netlify/functions/search-now', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(collectCurrentParams())
+      body: JSON.stringify(collectCurrentParams()),
+      cache: 'no-store'
     });
     const data = await res.json();
     if (!res.ok){
@@ -801,13 +802,15 @@ $('configForm').addEventListener('submit', async (e) => {
     const res = await fetch('/.netlify/functions/save-config', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      cache: 'no-store'
     });
+    const data = await res.json();
     if (!res.ok){
-      const err = await res.json();
-      showToast('Errore: ' + (err.error || res.status));
+      showToast('Errore: ' + (data.error || res.status));
       return;
     }
+    updateActivePills(data.active);
     showToast('Configurazione salvata.');
     loadConfig();
   }catch(err){
@@ -824,7 +827,8 @@ $('killBtn').addEventListener('click', async () => {
     const res = await fetch('/.netlify/functions/toggle-active', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ active:newActive })
+      body: JSON.stringify({ active:newActive }),
+      cache: 'no-store'
     });
     const data = await res.json();
     // Aggiorniamo subito l'interfaccia con la risposta appena ricevuta,
