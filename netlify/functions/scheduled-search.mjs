@@ -10,13 +10,18 @@ export default async () => {
   const configStore = getStore("flight-watch-config");
 
   const config = await configStore.get("config", { type: "json" });
-  if (!config) return new Response("Nessuna configurazione", { status: 200 });
+  if (!config) {
+    console.log("[scheduled-search] Nessuna configurazione salvata.");
+    return new Response("Nessuna configurazione", { status: 200 });
+  }
 
   if (!config.active) {
+    console.log("[scheduled-search] Ricerche disattivate (flag stop).");
     return new Response("Ricerche disattivate (flag stop)", { status: 200 });
   }
 
   const { due, currentSlotKey, slots } = isDueNow(config.attemptsPerDay, config.lastRunSlotKey, config.startHour);
+  console.log(`[scheduled-search] due=${due} currentSlotKey=${currentSlotKey} slots=[${slots.join(",")}] lastRunSlotKey=${config.lastRunSlotKey}`);
 
   if (!due) {
     return new Response(
@@ -30,14 +35,20 @@ export default async () => {
   // di prima, solo spostata qui perché questa è la parte veloce.
   config.lastRunSlotKey = currentSlotKey;
   await configStore.setJSON("config", config);
+  console.log(`[scheduled-search] Slot ${currentSlotKey} marcato come in corso.`);
 
   // Attiviamo la funzione background e non aspettiamo che finisca (può
   // richiedere diversi minuti con più tratte/date/fonti) — le basta
   // ricevere la richiesta per continuare a girare per conto suo.
   const siteUrl = process.env.URL || process.env.DEPLOY_PRIME_URL;
+  const targetUrl = `${siteUrl}/.netlify/functions/run-search-background`;
+  console.log(`[scheduled-search] siteUrl=${siteUrl || "(VUOTO! process.env.URL non impostata)"} targetUrl=${targetUrl}`);
+
   try {
-    await fetch(`${siteUrl}/.netlify/functions/run-search-background`, { method: "POST" });
+    const res = await fetch(targetUrl, { method: "POST" });
+    console.log(`[scheduled-search] Chiamata a run-search-background completata, status=${res.status}`);
   } catch (err) {
+    console.log(`[scheduled-search] ERRORE nell'attivare run-search-background: ${err.message}`);
     return new Response(`Errore nell'attivare la ricerca in background: ${err.message}`, { status: 200 });
   }
 
