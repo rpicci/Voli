@@ -159,6 +159,7 @@
     <div id="routesContainer"></div>
     <button type="button" id="addRouteBtn" class="btn-secondary">+ Aggiungi tratta</button>
     <div class="hint" id="routesQuotaEstimate" style="margin-top:10px;"></div>
+    <div class="hint" id="skyscannerQuotaEstimate" style="margin-top:4px;"></div>
     <div style="height:14px;"></div>
     <button type="submit" class="btn btn-primary">Salva configurazione</button>
   </section>
@@ -277,6 +278,13 @@
         </label>
         <div class="hint">Copre anche Ryanair/Wizz Air. La stima della quota consumata è mostrata nella sezione "Tratte monitorate" in cima alla pagina.</div>
       </div>
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" id="includeSkyscannerScheduled" style="width:auto;">
+          Includi Skyscanner anche nella ricerca automatica
+        </label>
+        <div class="hint">Copre anche le combinazioni andata/ritorno con compagnie diverse (es. Ryanair + Wizz Air). Quota gratuita più bassa (100/mese) e costa più chiamate per ricerca — stima anch'essa nella sezione "Tratte monitorate".</div>
+      </div>
     </div>
   </section>
 
@@ -284,6 +292,10 @@
     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;">
       <input type="checkbox" id="includeGoogleFlights" style="width:auto;">
       Includi anche Google Flights (copre Ryanair/Wizz Air, quota gratuita limitata a 150/mese)
+    </label>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;">
+      <input type="checkbox" id="includeSkyscanner" style="width:auto;">
+      Includi anche Skyscanner (copre combinazioni andata/ritorno miste, quota gratuita limitata a 100/mese)
     </label>
     <button type="button" id="searchNowBtn" class="btn btn-secondary">Cerca subito</button>
     <div class="hint">Usa i valori attuali del form, senza aspettare il prossimo slot programmato. Non modifica la configurazione salvata né lo scheduler automatico.</div>
@@ -550,6 +562,17 @@ function updateRoutesQuotaEstimate(){
   const over = monthlyEstimate > 150;
   el.style.color = over ? 'var(--red)' : '';
   el.textContent = `Se includi Google Flights nello scheduler: stima ~${monthlyEstimate} richieste/mese (quota gratuita 150/mese)${over ? ' ⚠️ probabile superamento quota' : ''}`;
+
+  // Skyscanner costa più chiamate per ricerca (risoluzione aeroporti oltre
+  // alla ricerca vera e propria) — stima approssimata per eccesso, con
+  // quota gratuita più bassa (100/mese).
+  const skyscannerEstimate = Math.round(monthlyEstimate * 1.5);
+  const elSky = $('skyscannerQuotaEstimate');
+  if (elSky){
+    const overSky = skyscannerEstimate > 100;
+    elSky.style.color = overSky ? 'var(--red)' : '';
+    elSky.textContent = `Se includi Skyscanner nello scheduler: stima ~${skyscannerEstimate} richieste/mese (quota gratuita 100/mese)${overSky ? ' ⚠️ probabile superamento quota' : ''}`;
+  }
 }
 $('attempts').addEventListener('input', updateRoutesQuotaEstimate);
 
@@ -561,6 +584,7 @@ $('swapAirportsBtn').addEventListener('click', () => {
 });
 
 $('includeGoogleFlightsScheduled').addEventListener('change', updateRoutesQuotaEstimate);
+$('includeSkyscannerScheduled').addEventListener('change', updateRoutesQuotaEstimate);
 
 function applyOneWayToggle(){
   const oneWay = $('oneWay').checked;
@@ -637,6 +661,7 @@ function fillForm(c){
   departTimeSlider.setRange(c.departTimeFrom, c.departTimeTo);
   arriveTimeSlider.setRange(c.arriveTimeFrom, c.arriveTimeTo);
   $('includeGoogleFlightsScheduled').checked = !!c.includeGoogleFlightsScheduled;
+  $('includeSkyscannerScheduled').checked = !!c.includeSkyscannerScheduled;
   updateRoutesQuotaEstimate();
 }
 
@@ -665,6 +690,7 @@ function collectCurrentParams(){
     maxStopsOutbound: parseInt($('stopsOut').value, 10),
     maxStopsReturn: parseInt($('stopsRet').value, 10),
     includeGoogleFlights: $('includeGoogleFlights').checked,
+    includeSkyscanner: $('includeSkyscanner').checked,
   };
 }
 
@@ -796,6 +822,7 @@ $('configForm').addEventListener('submit', async (e) => {
     email: $('email').value,
     active: currentActive,
     includeGoogleFlightsScheduled: $('includeGoogleFlightsScheduled').checked,
+    includeSkyscannerScheduled: $('includeSkyscannerScheduled').checked,
   };
 
   try{
