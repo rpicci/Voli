@@ -1,6 +1,7 @@
 import { searchCheapFlights } from "../../lib/travelpayouts.mjs";
 import { searchFlights as searchFlightsDuffel } from "../../lib/duffel.mjs";
 import { searchGoogleFlights } from "../../lib/googleflights.mjs";
+import { searchSkyscannerFlights } from "../../lib/skyscanner.mjs";
 
 export default async (req) => {
   if (req.method !== "POST") {
@@ -33,6 +34,11 @@ export default async (req) => {
   // va interrogata solo su richiesta esplicita dell'utente per questa singola
   // ricerca, mai automaticamente, per non esaurirla in fretta.
   const useGoogleFlights = !!params.includeGoogleFlights && !!RAPIDAPI_KEY;
+  // Sky Scrapper (Skyscanner) ha una quota ancora più bassa (100/mese) e
+  // costa più chiamate per ricerca (risoluzione aeroporti + ricerca):
+  // stesso principio di opt-in esplicito di Google Flights.
+  const useSkyscanner = !!params.includeSkyscanner && !!RAPIDAPI_KEY;
+  const skyscannerCache = new Map();
 
   const allResults = [];
   const errors = [];
@@ -103,6 +109,28 @@ export default async (req) => {
           errors.push(`Google Flights ${origin}->${destination}: ${err.message}`);
         }
       }
+
+      if (useSkyscanner) {
+        try {
+          const r = await searchSkyscannerFlights({
+            apiKey: RAPIDAPI_KEY,
+            origin,
+            destination,
+            departDateFrom: params.departDate,
+            returnDateFrom: params.returnDate,
+            maxStopsOutbound: params.maxStopsOutbound,
+            maxStopsReturn: params.maxStopsReturn,
+            departTimeFrom: params.departTimeFrom,
+            departTimeTo: params.departTimeTo,
+            arriveTimeFrom: params.arriveTimeFrom,
+            arriveTimeTo: params.arriveTimeTo,
+            cache: skyscannerCache,
+          });
+          allResults.push(...r);
+        } catch (err) {
+          errors.push(`Skyscanner ${origin}->${destination}: ${err.message}`);
+        }
+      }
     }
   }
 
@@ -118,6 +146,7 @@ export default async (req) => {
       DUFFEL_API_KEY ? "duffel" : null,
       TRAVELPAYOUTS_TOKEN ? "travelpayouts" : null,
       useGoogleFlights ? "googleflights" : null,
+      useSkyscanner ? "skyscanner" : null,
     ].filter(Boolean),
   };
 

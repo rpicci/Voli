@@ -3,6 +3,7 @@ import { generateDatePairs } from "../../lib/dateGeneration.mjs";
 import { searchCheapFlights } from "../../lib/travelpayouts.mjs";
 import { searchFlights as searchFlightsDuffel } from "../../lib/duffel.mjs";
 import { searchGoogleFlights } from "../../lib/googleflights.mjs";
+import { searchSkyscannerFlights } from "../../lib/skyscanner.mjs";
 import { sendResultsEmail, sendStatusEmail } from "../../lib/email.mjs";
 
 // Funzione BACKGROUND (fino a 15 minuti di esecuzione, contro i 30 secondi
@@ -29,6 +30,8 @@ export default async () => {
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
   const EMAIL_FROM = process.env.EMAIL_FROM;
   const useGoogleFlights = !!storedConfig.includeGoogleFlightsScheduled && !!RAPIDAPI_KEY;
+  const useSkyscanner = !!storedConfig.includeSkyscannerScheduled && !!RAPIDAPI_KEY;
+  const skyscannerCache = new Map();
 
   const routes = Array.isArray(storedConfig.routes) ? storedConfig.routes.slice(0, 3) : [];
 
@@ -100,6 +103,28 @@ export default async () => {
               allResults.push(...r);
             } catch (err) {
               errors.push(`Google Flights ${origin}->${destination} ${departDate}: ${err.message}`);
+            }
+          }
+
+          if (useSkyscanner) {
+            try {
+              const r = await searchSkyscannerFlights({
+                apiKey: RAPIDAPI_KEY,
+                origin,
+                destination,
+                departDateFrom: departDate,
+                returnDateFrom: returnDate,
+                maxStopsOutbound: storedConfig.maxStopsOutbound,
+                maxStopsReturn: storedConfig.maxStopsReturn,
+                departTimeFrom: storedConfig.departTimeFrom,
+                departTimeTo: storedConfig.departTimeTo,
+                arriveTimeFrom: storedConfig.arriveTimeFrom,
+                arriveTimeTo: storedConfig.arriveTimeTo,
+                cache: skyscannerCache,
+              });
+              allResults.push(...r);
+            } catch (err) {
+              errors.push(`Skyscanner ${origin}->${destination} ${departDate}: ${err.message}`);
             }
           }
 
