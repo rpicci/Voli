@@ -2,6 +2,7 @@ import { searchCheapFlights } from "../../lib/travelpayouts.mjs";
 import { searchFlights as searchFlightsDuffel } from "../../lib/duffel.mjs";
 import { searchGoogleFlights } from "../../lib/googleflights.mjs";
 import { searchSkyscannerFlights } from "../../lib/skyscanner.mjs";
+import { searchBookingFlights } from "../../lib/booking.mjs";
 
 export default async (req) => {
   if (req.method !== "POST") {
@@ -38,6 +39,10 @@ export default async (req) => {
   // costa più chiamate per ricerca (risoluzione aeroporti + ricerca):
   // stesso principio di opt-in esplicito di Google Flights.
   const useSkyscanner = !!params.includeSkyscanner && !!RAPIDAPI_KEY;
+  // Booking.com ha una quota molto più generosa (500/mese) delle altre due
+  // fonti RapidAPI, ma resta comunque opt-in per coerenza con lo schema
+  // già usato.
+  const useBooking = !!params.includeBooking && !!RAPIDAPI_KEY;
   const skyscannerCache = new Map();
 
   const allResults = [];
@@ -131,6 +136,27 @@ export default async (req) => {
           errors.push(`Skyscanner ${origin}->${destination}: ${err.message}`);
         }
       }
+
+      if (useBooking) {
+        try {
+          const r = await searchBookingFlights({
+            apiKey: RAPIDAPI_KEY,
+            origin,
+            destination,
+            departDateFrom: params.departDate,
+            returnDateFrom: params.returnDate,
+            maxStopsOutbound: params.maxStopsOutbound,
+            maxStopsReturn: params.maxStopsReturn,
+            departTimeFrom: params.departTimeFrom,
+            departTimeTo: params.departTimeTo,
+            arriveTimeFrom: params.arriveTimeFrom,
+            arriveTimeTo: params.arriveTimeTo,
+          });
+          allResults.push(...r);
+        } catch (err) {
+          errors.push(`Booking.com ${origin}->${destination}: ${err.message}`);
+        }
+      }
     }
   }
 
@@ -147,6 +173,7 @@ export default async (req) => {
       TRAVELPAYOUTS_TOKEN ? "travelpayouts" : null,
       useGoogleFlights ? "googleflights" : null,
       useSkyscanner ? "skyscanner" : null,
+      useBooking ? "booking" : null,
     ].filter(Boolean),
   };
 

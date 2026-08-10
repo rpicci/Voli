@@ -4,6 +4,7 @@ import { searchCheapFlights } from "../../lib/travelpayouts.mjs";
 import { searchFlights as searchFlightsDuffel } from "../../lib/duffel.mjs";
 import { searchGoogleFlights } from "../../lib/googleflights.mjs";
 import { searchSkyscannerFlights } from "../../lib/skyscanner.mjs";
+import { searchBookingFlights } from "../../lib/booking.mjs";
 import { sendResultsEmail, sendStatusEmail } from "../../lib/email.mjs";
 
 // Funzione BACKGROUND (fino a 15 minuti di esecuzione, contro i 30 secondi
@@ -31,6 +32,7 @@ export default async () => {
   const EMAIL_FROM = process.env.EMAIL_FROM;
   const useGoogleFlights = !!storedConfig.includeGoogleFlightsScheduled && !!RAPIDAPI_KEY;
   const useSkyscanner = !!storedConfig.includeSkyscannerScheduled && !!RAPIDAPI_KEY;
+  const useBooking = !!storedConfig.includeBookingScheduled && !!RAPIDAPI_KEY;
   const skyscannerCache = new Map();
 
   const routes = Array.isArray(storedConfig.routes) ? storedConfig.routes.slice(0, 3) : [];
@@ -125,6 +127,27 @@ export default async () => {
               allResults.push(...r);
             } catch (err) {
               errors.push(`Skyscanner ${origin}->${destination} ${departDate}: ${err.message}`);
+            }
+          }
+
+          if (useBooking) {
+            try {
+              const r = await searchBookingFlights({
+                apiKey: RAPIDAPI_KEY,
+                origin,
+                destination,
+                departDateFrom: departDate,
+                returnDateFrom: returnDate,
+                maxStopsOutbound: storedConfig.maxStopsOutbound,
+                maxStopsReturn: storedConfig.maxStopsReturn,
+                departTimeFrom: storedConfig.departTimeFrom,
+                departTimeTo: storedConfig.departTimeTo,
+                arriveTimeFrom: storedConfig.arriveTimeFrom,
+                arriveTimeTo: storedConfig.arriveTimeTo,
+              });
+              allResults.push(...r);
+            } catch (err) {
+              errors.push(`Booking.com ${origin}->${destination} ${departDate}: ${err.message}`);
             }
           }
 
