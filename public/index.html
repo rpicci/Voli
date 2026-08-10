@@ -283,7 +283,14 @@
           <input type="checkbox" id="includeSkyscannerScheduled" style="width:auto;">
           Includi Skyscanner anche nella ricerca automatica
         </label>
-        <div class="hint">Copre anche le combinazioni andata/ritorno con compagnie diverse (es. Ryanair + Wizz Air). Quota gratuita più bassa (100/mese) e costa più chiamate per ricerca — stima anch'essa nella sezione "Tratte monitorate".</div>
+        <div class="hint">Copre anche le combinazioni andata/ritorno con compagnie diverse (es. Ryanair + Wizz Air). Quota gratuita molto bassa (~20/mese secondo verifica diretta, non fidarti del numero indicato sulla pagina RapidAPI) e costa più chiamate per ricerca — sconsigliato lasciarlo attivo qui, meglio solo su "Cerca subito" per verifiche mirate.</div>
+      </div>
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" id="includeBookingScheduled" style="width:auto;">
+          Includi Booking.com anche nella ricerca automatica
+        </label>
+        <div class="hint">Quota gratuita più generosa (500/mese) delle altre due fonti RapidAPI — più adatta all'uso automatico continuativo.</div>
       </div>
     </div>
   </section>
@@ -295,7 +302,11 @@
     </label>
     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;">
       <input type="checkbox" id="includeSkyscanner" style="width:auto;">
-      Includi anche Skyscanner (copre combinazioni andata/ritorno miste, quota gratuita limitata a 100/mese)
+      Includi anche Skyscanner (copre combinazioni andata/ritorno miste, quota gratuita molto bassa ~20/mese)
+    </label>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;">
+      <input type="checkbox" id="includeBooking" style="width:auto;">
+      Includi anche Booking.com (quota gratuita 500/mese)
     </label>
     <button type="button" id="searchNowBtn" class="btn btn-secondary">Cerca subito</button>
     <div class="hint">Usa i valori attuali del form, senza aspettare il prossimo slot programmato. Non modifica la configurazione salvata né lo scheduler automatico.</div>
@@ -585,6 +596,7 @@ $('swapAirportsBtn').addEventListener('click', () => {
 
 $('includeGoogleFlightsScheduled').addEventListener('change', updateRoutesQuotaEstimate);
 $('includeSkyscannerScheduled').addEventListener('change', updateRoutesQuotaEstimate);
+$('includeBookingScheduled').addEventListener('change', updateRoutesQuotaEstimate);
 
 function applyOneWayToggle(){
   const oneWay = $('oneWay').checked;
@@ -662,6 +674,7 @@ function fillForm(c){
   arriveTimeSlider.setRange(c.arriveTimeFrom, c.arriveTimeTo);
   $('includeGoogleFlightsScheduled').checked = !!c.includeGoogleFlightsScheduled;
   $('includeSkyscannerScheduled').checked = !!c.includeSkyscannerScheduled;
+  $('includeBookingScheduled').checked = !!c.includeBookingScheduled;
   updateRoutesQuotaEstimate();
 }
 
@@ -691,6 +704,7 @@ function collectCurrentParams(){
     maxStopsReturn: parseInt($('stopsRet').value, 10),
     includeGoogleFlights: $('includeGoogleFlights').checked,
     includeSkyscanner: $('includeSkyscanner').checked,
+    includeBooking: $('includeBooking').checked,
   };
 }
 
@@ -823,6 +837,7 @@ $('configForm').addEventListener('submit', async (e) => {
     active: currentActive,
     includeGoogleFlightsScheduled: $('includeGoogleFlightsScheduled').checked,
     includeSkyscannerScheduled: $('includeSkyscannerScheduled').checked,
+    includeBookingScheduled: $('includeBookingScheduled').checked,
   };
 
   try{
