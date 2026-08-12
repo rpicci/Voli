@@ -5,6 +5,7 @@ import { searchFlights as searchFlightsDuffel } from "../../lib/duffel.mjs";
 import { searchGoogleFlights } from "../../lib/googleflights.mjs";
 import { searchSkyscannerFlights } from "../../lib/skyscanner.mjs";
 import { searchBookingFlights } from "../../lib/booking.mjs";
+import { getEurRates } from "../../lib/exchangeRates.mjs";
 import { sendResultsEmail, sendStatusEmail } from "../../lib/email.mjs";
 
 // Funzione BACKGROUND (fino a 15 minuti di esecuzione, contro i 30 secondi
@@ -39,6 +40,15 @@ export default async () => {
 
   const allResults = [];
   const errors = [];
+
+  let eurRates = null;
+  if (useBooking) {
+    try {
+      eurRates = await getEurRates(RAPIDAPI_KEY);
+    } catch (err) {
+      errors.push(`Booking.com exchange-rates: ${err.message}`);
+    }
+  }
 
   for (const route of routes) {
     const datePairs = generateDatePairs(route);
@@ -144,6 +154,7 @@ export default async () => {
                 departTimeTo: storedConfig.departTimeTo,
                 arriveTimeFrom: storedConfig.arriveTimeFrom,
                 arriveTimeTo: storedConfig.arriveTimeTo,
+                eurRates,
               });
               allResults.push(...r);
             } catch (err) {

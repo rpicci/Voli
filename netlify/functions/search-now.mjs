@@ -3,6 +3,7 @@ import { searchFlights as searchFlightsDuffel } from "../../lib/duffel.mjs";
 import { searchGoogleFlights } from "../../lib/googleflights.mjs";
 import { searchSkyscannerFlights } from "../../lib/skyscanner.mjs";
 import { searchBookingFlights } from "../../lib/booking.mjs";
+import { getEurRates } from "../../lib/exchangeRates.mjs";
 
 export default async (req) => {
   if (req.method !== "POST") {
@@ -47,6 +48,17 @@ export default async (req) => {
 
   const allResults = [];
   const errors = [];
+
+  // Recuperati una sola volta (con cache giornaliera interna), non a ogni
+  // singola ricerca all'interno del ciclo.
+  let eurRates = null;
+  if (useBooking) {
+    try {
+      eurRates = await getEurRates(RAPIDAPI_KEY);
+    } catch (err) {
+      errors.push(`Booking.com exchange-rates: ${err.message}`);
+    }
+  }
 
   for (const origin of params.originAirports) {
     for (const destination of params.destinationAirports) {
@@ -151,6 +163,7 @@ export default async (req) => {
             departTimeTo: params.departTimeTo,
             arriveTimeFrom: params.arriveTimeFrom,
             arriveTimeTo: params.arriveTimeTo,
+            eurRates,
           });
           allResults.push(...r);
         } catch (err) {
