@@ -26,6 +26,23 @@ export default async () => {
 
   const currentSlotKey = storedConfig.lastRunSlotKey;
 
+  // Le Background Functions di Netlify girano su AWS Lambda in modalità
+  // asincrona: se l'esecuzione va in errore o in timeout, Lambda la
+  // ritenta automaticamente (senza avvisare l'app) rilanciando l'intera
+  // funzione da capo per la stessa invocazione. Senza questo lucchetto,
+  // un retry rifarebbe tutte le ricerche e manderebbe una seconda email.
+  // Marchiamo subito lo slot come "in corso" e usciamo se troviamo che
+  // qualcun altro l'ha già preso in carico.
+  const lockKey = `lock-${currentSlotKey || "unknown"}`;
+  const existingLock = await resultsStore.get(lockKey, { type: "json" });
+  if (existingLock) {
+    console.log(
+      `[run-search-background] Slot ${currentSlotKey} già in corso/completato (lock trovato, avviato alle ${existingLock.startedAt}) — esco senza rifare il lavoro.`
+    );
+    return new Response("Slot già in esecuzione, invocazione duplicata ignorata", { status: 200 });
+  }
+  await resultsStore.setJSON(lockKey, { startedAt: new Date().toISOString() });
+
   const TRAVELPAYOUTS_TOKEN = process.env.TRAVELPAYOUTS_TOKEN;
   const DUFFEL_API_KEY = process.env.DUFFEL_API_KEY;
   const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
