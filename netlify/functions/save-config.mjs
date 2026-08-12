@@ -52,6 +52,13 @@ export default async (req) => {
   const existing = await store.get("config", { type: "json" });
   config.active = existing && typeof existing.active === "boolean" ? existing.active : true;
 
+  // lastRunSlotKey non arriva dal form (non è un campo che l'utente
+  // compila): va preservato esplicitamente, altrimenti ogni salvataggio
+  // lo cancella e lo scheduler perde traccia dell'ultimo slot già eseguito.
+  if (existing && existing.lastRunSlotKey) {
+    config.lastRunSlotKey = existing.lastRunSlotKey;
+  }
+
   await store.setJSON("config", config);
 
   return new Response(JSON.stringify({ ok: true, active: config.active }), {
