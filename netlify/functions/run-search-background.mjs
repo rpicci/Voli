@@ -53,7 +53,7 @@ export default async () => {
   const useBooking = !!storedConfig.includeBookingScheduled && !!RAPIDAPI_KEY;
   const skyscannerCache = new Map();
 
-  const routes = Array.isArray(storedConfig.routes) ? storedConfig.routes.slice(0, 3) : [];
+  const routes = Array.isArray(storedConfig.routes) ? storedConfig.routes.slice(0, 5) : [];
 
   const allResults = [];
   const errors = [];
