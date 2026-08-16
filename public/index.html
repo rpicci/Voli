@@ -156,7 +156,7 @@
 <form id="configForm">
   <section>
     <h2>Tratte monitorate (ricerca automatica)</h2>
-    <div class="hint" style="margin-bottom:14px;">Fino a 3 tratte, ciascuna con il proprio range di date, giorni della settimana e durata del soggiorno. Lo scheduler controlla tutte le combinazioni nell'unico slot giornaliero configurato più sotto.</div>
+    <div class="hint" style="margin-bottom:14px;">Fino a 5 tratte, ciascuna con il proprio range di date, giorni della settimana e durata del soggiorno. Lo scheduler controlla tutte le combinazioni nell'unico slot giornaliero configurato più sotto.</div>
     <div id="routesContainer"></div>
     <button type="button" id="addRouteBtn" class="btn-secondary">+ Aggiungi tratta</button>
     <div class="hint" id="routesQuotaEstimate" style="margin-top:10px;"></div>
@@ -387,7 +387,7 @@ const WEEKDAY_LABELS = [
   { value: 4, label: 'Gio' }, { value: 5, label: 'Ven' }, { value: 6, label: 'Sab' },
   { value: 0, label: 'Dom' },
 ];
-const MAX_ROUTES = 3;
+const MAX_ROUTES = 5;
 let routeCount = 0;
 
 function createRouteCard(index){
