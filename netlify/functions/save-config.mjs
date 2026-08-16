@@ -24,9 +24,9 @@ export default async (req) => {
     );
   }
 
-  if (!Array.isArray(config.routes) || config.routes.length === 0 || config.routes.length > 3) {
+  if (!Array.isArray(config.routes) || config.routes.length === 0 || config.routes.length > 5) {
     return new Response(
-      JSON.stringify({ error: "Serve almeno 1 e al massimo 3 tratte monitorate" }),
+      JSON.stringify({ error: "Serve almeno 1 e al massimo 5 tratte monitorate" }),
       { status: 400, headers: { "Content-Type": "application/json" } }
     );
   }
