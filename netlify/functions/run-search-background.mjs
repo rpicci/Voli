@@ -17,6 +17,19 @@ export const config = {
   background: true,
 };
 
+// Un errore transitorio (timeout, hiccup di rete) su una singola fonte
+// non deve far perdere un intero risultato: un solo retry con una breve
+// pausa risolve la maggior parte dei casi senza rallentare troppo.
+async function withRetry(fn, retries = 1, delayMs = 1500) {
+  try {
+    return await fn();
+  } catch (err) {
+    if (retries <= 0) throw err;
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    return withRetry(fn, retries - 1, delayMs);
+  }
+}
+
 export default async () => {
   const configStore = getStore("flight-watch-config");
   const resultsStore = getStore("flight-watch-results");
@@ -77,7 +90,7 @@ export default async () => {
 
           if (DUFFEL_API_KEY) {
             try {
-              const r = await searchFlightsDuffel({
+              const r = await withRetry(() => searchFlightsDuffel({
                 apiKey: DUFFEL_API_KEY,
                 origin,
                 destination,
@@ -89,7 +102,7 @@ export default async () => {
                 departTimeTo: storedConfig.departTimeTo,
                 arriveTimeFrom: storedConfig.arriveTimeFrom,
                 arriveTimeTo: storedConfig.arriveTimeTo,
-              });
+              }));
               allResults.push(...r);
             } catch (err) {
               errors.push(`Duffel ${origin}->${destination} ${departDate}: ${err.message}`);
@@ -98,7 +111,7 @@ export default async () => {
 
           if (TRAVELPAYOUTS_TOKEN) {
             try {
-              const r = await searchCheapFlights({
+              const r = await withRetry(() => searchCheapFlights({
                 token: TRAVELPAYOUTS_TOKEN,
                 origin,
                 destination,
@@ -107,7 +120,7 @@ export default async () => {
                 returnDateFrom: returnDate,
                 returnDateTo: returnDate,
                 maxStops: storedConfig.maxStopsOutbound,
-              });
+              }));
               allResults.push(...r);
             } catch (err) {
               errors.push(`Travelpayouts ${origin}->${destination} ${departDate}: ${err.message}`);
@@ -116,7 +129,7 @@ export default async () => {
 
           if (useGoogleFlights) {
             try {
-              const r = await searchGoogleFlights({
+              const r = await withRetry(() => searchGoogleFlights({
                 apiKey: RAPIDAPI_KEY,
                 origin,
                 destination,
@@ -128,7 +141,7 @@ export default async () => {
                 departTimeTo: storedConfig.departTimeTo,
                 arriveTimeFrom: storedConfig.arriveTimeFrom,
                 arriveTimeTo: storedConfig.arriveTimeTo,
-              });
+              }));
               allResults.push(...r);
             } catch (err) {
               errors.push(`Google Flights ${origin}->${destination} ${departDate}: ${err.message}`);
@@ -137,7 +150,7 @@ export default async () => {
 
           if (useSkyscanner) {
             try {
-              const r = await searchSkyscannerFlights({
+              const r = await withRetry(() => searchSkyscannerFlights({
                 apiKey: RAPIDAPI_KEY,
                 origin,
                 destination,
@@ -150,7 +163,7 @@ export default async () => {
                 arriveTimeFrom: storedConfig.arriveTimeFrom,
                 arriveTimeTo: storedConfig.arriveTimeTo,
                 cache: skyscannerCache,
-              });
+              }));
               allResults.push(...r);
             } catch (err) {
               errors.push(`Skyscanner ${origin}->${destination} ${departDate}: ${err.message}`);
@@ -159,7 +172,7 @@ export default async () => {
 
           if (useBooking) {
             try {
-              const r = await searchBookingFlights({
+              const r = await withRetry(() => searchBookingFlights({
                 apiKey: RAPIDAPI_KEY,
                 origin,
                 destination,
@@ -172,7 +185,7 @@ export default async () => {
                 arriveTimeFrom: storedConfig.arriveTimeFrom,
                 arriveTimeTo: storedConfig.arriveTimeTo,
                 eurRates,
-              });
+              }));
               allResults.push(...r);
             } catch (err) {
               errors.push(`Booking.com ${origin}->${destination} ${departDate}: ${err.message}`);
@@ -201,6 +214,7 @@ export default async () => {
           to: storedConfig.email,
           results: allResults,
           searchLabel: routeLabels,
+          errors,
         });
       } else if (errors.length > 0) {
         await sendStatusEmail({
