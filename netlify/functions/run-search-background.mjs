@@ -88,6 +88,8 @@ export default async () => {
         for (const destination of route.destinationAirports) {
           if (origin === destination) continue;
 
+          const countBefore = allResults.length;
+
           if (DUFFEL_API_KEY) {
             try {
               const r = await withRetry(() => searchFlightsDuffel({
@@ -103,6 +105,7 @@ export default async () => {
                 arriveTimeFrom: storedConfig.arriveTimeFrom,
                 arriveTimeTo: storedConfig.arriveTimeTo,
               }));
+              console.log(`[DEBUG conteggio] Duffel ${origin}->${destination} ${departDate}: ${r.length} voli`);
               allResults.push(...r);
             } catch (err) {
               errors.push(`Duffel ${origin}->${destination} ${departDate}: ${err.message}`);
@@ -121,6 +124,7 @@ export default async () => {
                 returnDateTo: returnDate,
                 maxStops: storedConfig.maxStopsOutbound,
               }));
+              console.log(`[DEBUG conteggio] Travelpayouts ${origin}->${destination} ${departDate}: ${r.length} voli`);
               allResults.push(...r);
             } catch (err) {
               errors.push(`Travelpayouts ${origin}->${destination} ${departDate}: ${err.message}`);
@@ -142,6 +146,7 @@ export default async () => {
                 arriveTimeFrom: storedConfig.arriveTimeFrom,
                 arriveTimeTo: storedConfig.arriveTimeTo,
               }));
+              console.log(`[DEBUG conteggio] Google Flights ${origin}->${destination} ${departDate}: ${r.length} voli`);
               allResults.push(...r);
             } catch (err) {
               errors.push(`Google Flights ${origin}->${destination} ${departDate}: ${err.message}`);
@@ -164,6 +169,7 @@ export default async () => {
                 arriveTimeTo: storedConfig.arriveTimeTo,
                 cache: skyscannerCache,
               }));
+              console.log(`[DEBUG conteggio] Skyscanner ${origin}->${destination} ${departDate}: ${r.length} voli`);
               allResults.push(...r);
             } catch (err) {
               errors.push(`Skyscanner ${origin}->${destination} ${departDate}: ${err.message}`);
@@ -186,6 +192,7 @@ export default async () => {
                 arriveTimeTo: storedConfig.arriveTimeTo,
                 eurRates,
               }));
+              console.log(`[DEBUG conteggio] Booking.com ${origin}->${destination} ${departDate}: ${r.length} voli`);
               allResults.push(...r);
             } catch (err) {
               errors.push(`Booking.com ${origin}->${destination} ${departDate}: ${err.message}`);
@@ -193,6 +200,7 @@ export default async () => {
           }
 
           await new Promise((resolve) => setTimeout(resolve, 300));
+          console.log(`[DEBUG conteggio] TOTALE per ${origin}->${destination} ${departDate}: ${allResults.length - countBefore} voli trovati in questa combinazione (da tutte le fonti insieme)`);
         }
       }
     }
