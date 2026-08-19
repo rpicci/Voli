@@ -732,6 +732,7 @@ function renderResults(results, errors, criteria){
       <div>
         <div class="result-price">${r.price} ${r.currency}</div>
         ${r.originalPrice != null ? `<div class="result-original-price mono">${r.originalPrice} ${r.originalCurrency}</div>` : ''}
+        ${r.conversionFailed ? `<div class="result-original-price mono" style="color:var(--red);">⚠️ non convertito</div>` : ''}
       </div>
     `;
     list.appendChild(div);
