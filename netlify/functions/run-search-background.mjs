@@ -7,6 +7,7 @@ import { searchSkyscannerFlights } from "../../lib/skyscanner.mjs";
 import { searchBookingFlights } from "../../lib/booking.mjs";
 import { getEurRates } from "../../lib/exchangeRates.mjs";
 import { sendResultsEmail, sendStatusEmail } from "../../lib/email.mjs";
+import { getPreviousPrice, savePrice } from "../../lib/priceHistory.mjs";
 
 // Funzione BACKGROUND (fino a 15 minuti di esecuzione, contro i 30 secondi
 // delle funzioni schedulate). Fa tutto il lavoro pesante: viene attivata da
@@ -33,6 +34,7 @@ async function withRetry(fn, retries = 1, delayMs = 1500) {
 export default async () => {
   const configStore = getStore("flight-watch-config");
   const resultsStore = getStore("flight-watch-results");
+  const historyStore = getStore("flight-watch-price-history");
 
   const storedConfig = await configStore.get("config", { type: "json" });
   if (!storedConfig) return new Response("Nessuna configurazione", { status: 200 });
@@ -201,6 +203,37 @@ export default async () => {
 
           await new Promise((resolve) => setTimeout(resolve, 300));
           console.log(`[DEBUG conteggio] TOTALE per ${origin}->${destination} ${departDate}: ${allResults.length - countBefore} voli trovati in questa combinazione (da tutte le fonti insieme)`);
+
+          // Confronto col prezzo più economico registrato nell'ultima
+          // esecuzione schedulata per questa stessa tratta+date, a
+          // prescindere da fonte/scali. Solo prezzi in EUR affidabili
+          // (non quelli con conversione fallita) entrano nel confronto,
+          // altrimenti un cambio di valuta sembrerebbe un'oscillazione
+          // di prezzo.
+          const comboResults = allResults
+            .slice(countBefore)
+            .filter((r) => r.currency === "EUR" && !r.conversionFailed);
+
+          if (comboResults.length > 0) {
+            const cheapestNow = Math.min(...comboResults.map((r) => r.price));
+            try {
+              const previous = await getPreviousPrice(historyStore, origin, destination, departDate, returnDate);
+              if (previous) {
+                const delta = Math.round((cheapestNow - previous.price) * 100) / 100;
+                const vsRecordLow = Math.round((cheapestNow - previous.minPrice) * 100) / 100;
+                for (const r of comboResults) {
+                  r.priceChangeVsLastRun = delta;
+                  r.previousPrice = previous.price;
+                  r.recordLowPrice = previous.minPrice;
+                  r.recordLowDate = previous.minRecordedAt;
+                  r.isNewRecordLow = vsRecordLow <= 0;
+                }
+              }
+              await savePrice(historyStore, origin, destination, departDate, returnDate, cheapestNow, previous);
+            } catch (err) {
+              console.log(`[price-history] Errore confronto/salvataggio per ${origin}->${destination} ${departDate}: ${err.message}`);
+            }
+          }
         }
       }
     }
