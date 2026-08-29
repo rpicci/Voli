@@ -63,9 +63,7 @@ export default async () => {
   const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
   const EMAIL_FROM = process.env.EMAIL_FROM;
-  const useGoogleFlights = !!storedConfig.includeGoogleFlightsScheduled && !!RAPIDAPI_KEY;
-  const useSkyscanner = !!storedConfig.includeSkyscannerScheduled && !!RAPIDAPI_KEY;
-  const useBooking = !!storedConfig.includeBookingScheduled && !!RAPIDAPI_KEY;
+  const useSkyscanner = false; // box rimosso dal form, fonte non più esposta all'utente
   const skyscannerCache = new Map();
 
   const routes = Array.isArray(storedConfig.routes) ? storedConfig.routes.slice(0, 5) : [];
@@ -73,8 +71,12 @@ export default async () => {
   const allResults = [];
   const errors = [];
 
+  // includeGoogleFlights/includeBooking sono ora selezionabili per singola
+  // tratta (non più un flag unico globale) — recuperiamo comunque il tasso
+  // di cambio una sola volta in anticipo se ALMENO una tratta usa Booking.
+  const anyRouteUsesBooking = routes.some((r) => r.includeBooking) && !!RAPIDAPI_KEY;
   let eurRates = null;
-  if (useBooking) {
+  if (anyRouteUsesBooking) {
     try {
       eurRates = await getEurRates(RAPIDAPI_KEY);
     } catch (err) {
@@ -83,6 +85,8 @@ export default async () => {
   }
 
   for (const route of routes) {
+    const useGoogleFlights = !!route.includeGoogleFlights && !!RAPIDAPI_KEY;
+    const useBooking = !!route.includeBooking && !!RAPIDAPI_KEY;
     const datePairs = generateDatePairs(route);
 
     for (const { departDate, returnDate } of datePairs) {
@@ -102,10 +106,10 @@ export default async () => {
                 returnDateFrom: returnDate,
                 maxStopsOutbound: storedConfig.maxStopsOutbound,
                 maxStopsReturn: storedConfig.maxStopsReturn,
-                departTimeFrom: storedConfig.departTimeFrom,
-                departTimeTo: storedConfig.departTimeTo,
-                arriveTimeFrom: storedConfig.arriveTimeFrom,
-                arriveTimeTo: storedConfig.arriveTimeTo,
+                departTimeFrom: route.departTimeFrom,
+                departTimeTo: route.departTimeTo,
+                arriveTimeFrom: route.arriveTimeFrom,
+                arriveTimeTo: route.arriveTimeTo,
               }));
               console.log(`[DEBUG conteggio] Duffel ${origin}->${destination} ${departDate}: ${r.length} voli`);
               allResults.push(...r);
@@ -143,10 +147,10 @@ export default async () => {
                 returnDateFrom: returnDate,
                 maxStopsOutbound: storedConfig.maxStopsOutbound,
                 maxStopsReturn: storedConfig.maxStopsReturn,
-                departTimeFrom: storedConfig.departTimeFrom,
-                departTimeTo: storedConfig.departTimeTo,
-                arriveTimeFrom: storedConfig.arriveTimeFrom,
-                arriveTimeTo: storedConfig.arriveTimeTo,
+                departTimeFrom: route.departTimeFrom,
+                departTimeTo: route.departTimeTo,
+                arriveTimeFrom: route.arriveTimeFrom,
+                arriveTimeTo: route.arriveTimeTo,
               }));
               console.log(`[DEBUG conteggio] Google Flights ${origin}->${destination} ${departDate}: ${r.length} voli`);
               allResults.push(...r);
@@ -165,10 +169,10 @@ export default async () => {
                 returnDateFrom: returnDate,
                 maxStopsOutbound: storedConfig.maxStopsOutbound,
                 maxStopsReturn: storedConfig.maxStopsReturn,
-                departTimeFrom: storedConfig.departTimeFrom,
-                departTimeTo: storedConfig.departTimeTo,
-                arriveTimeFrom: storedConfig.arriveTimeFrom,
-                arriveTimeTo: storedConfig.arriveTimeTo,
+                departTimeFrom: route.departTimeFrom,
+                departTimeTo: route.departTimeTo,
+                arriveTimeFrom: route.arriveTimeFrom,
+                arriveTimeTo: route.arriveTimeTo,
                 cache: skyscannerCache,
               }));
               console.log(`[DEBUG conteggio] Skyscanner ${origin}->${destination} ${departDate}: ${r.length} voli`);
@@ -188,10 +192,10 @@ export default async () => {
                 returnDateFrom: returnDate,
                 maxStopsOutbound: storedConfig.maxStopsOutbound,
                 maxStopsReturn: storedConfig.maxStopsReturn,
-                departTimeFrom: storedConfig.departTimeFrom,
-                departTimeTo: storedConfig.departTimeTo,
-                arriveTimeFrom: storedConfig.arriveTimeFrom,
-                arriveTimeTo: storedConfig.arriveTimeTo,
+                departTimeFrom: route.departTimeFrom,
+                departTimeTo: route.departTimeTo,
+                arriveTimeFrom: route.arriveTimeFrom,
+                arriveTimeTo: route.arriveTimeTo,
                 eurRates,
               }));
               console.log(`[DEBUG conteggio] Booking.com ${origin}->${destination} ${departDate}: ${r.length} voli`);
