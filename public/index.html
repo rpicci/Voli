@@ -207,34 +207,38 @@
   </section>
 
   <section>
-    <h2>Fasce orarie</h2>
+    <h2>Fasce orarie (test on-demand)</h2>
     <div class="card">
       <div class="field">
         <label>Orario di partenza andata</label>
-        <div class="dual-slider" id="departTimeSliderBox">
-          <div class="dual-slider-track"></div>
-          <div class="dual-slider-fill" id="departTimeFill"></div>
-          <input type="range" class="dual-slider-input dual-slider-min" id="departTimeMin" min="0" max="1439" step="15" value="0">
-          <input type="range" class="dual-slider-input dual-slider-max" id="departTimeMax" min="0" max="1439" step="15" value="1439">
-        </div>
-        <div class="dual-slider-labels">
-          <span class="mono" id="departTimeMinLabel">00:00</span>
-          <span class="mono" id="departTimeMaxLabel">23:59</span>
+        <div id="departTimeSliderBox">
+          <div class="dual-slider">
+            <div class="dual-slider-track"></div>
+            <div class="dual-slider-fill"></div>
+            <input type="range" class="dual-slider-input dual-slider-min" min="0" max="1439" step="15" value="0">
+            <input type="range" class="dual-slider-input dual-slider-max" min="0" max="1439" step="15" value="1439">
+          </div>
+          <div class="dual-slider-labels">
+            <span class="mono dual-slider-min-label">00:00</span>
+            <span class="mono dual-slider-max-label">23:59</span>
+          </div>
         </div>
       </div>
       <div class="field">
         <label>Orario di partenza del ritorno</label>
-        <div class="dual-slider" id="arriveTimeSliderBox">
-          <div class="dual-slider-track"></div>
-          <div class="dual-slider-fill" id="arriveTimeFill"></div>
-          <input type="range" class="dual-slider-input dual-slider-min" id="arriveTimeMin" min="0" max="1439" step="15" value="0">
-          <input type="range" class="dual-slider-input dual-slider-max" id="arriveTimeMax" min="0" max="1439" step="15" value="1439">
+        <div id="arriveTimeSliderBox">
+          <div class="dual-slider">
+            <div class="dual-slider-track"></div>
+            <div class="dual-slider-fill"></div>
+            <input type="range" class="dual-slider-input dual-slider-min" min="0" max="1439" step="15" value="0">
+            <input type="range" class="dual-slider-input dual-slider-max" min="0" max="1439" step="15" value="1439">
+          </div>
+          <div class="dual-slider-labels">
+            <span class="mono dual-slider-min-label">00:00</span>
+            <span class="mono dual-slider-max-label">23:59</span>
+          </div>
         </div>
-        <div class="dual-slider-labels">
-          <span class="mono" id="arriveTimeMinLabel">00:00</span>
-          <span class="mono" id="arriveTimeMaxLabel">23:59</span>
-        </div>
-        <div class="hint">Partenza = decollo dell'andata. Il secondo cursore = decollo del ritorno — oppure, se "solo andata", atterraggio dell'unica tratta. Filtro preciso solo su risultati Duffel/Google Flights; su Travelpayouts viene ignorato (l'API non fornisce l'orario, solo la data).</div>
+        <div class="hint">Partenza = decollo dell'andata. Il secondo cursore = decollo del ritorno — oppure, se "solo andata", atterraggio dell'unica tratta. Filtro preciso solo su risultati Duffel/Google Flights; su Travelpayouts viene ignorato (l'API non fornisce l'orario, solo la data). Questa fascia oraria vale solo per il test "Cerca subito" — le tratte monitorate hanno ciascuna la propria, impostabile nella relativa card più sopra.</div>
       </div>
     </div>
   </section>
@@ -270,20 +274,6 @@
       <div class="field">
         <label for="email">Email per i risultati</label>
         <input type="email" id="email" placeholder="tuo@indirizzo.it" required>
-      </div>
-      <div class="field">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-          <input type="checkbox" id="includeGoogleFlightsScheduled" style="width:auto;">
-          Includi Google Flights anche nella ricerca automatica
-        </label>
-        <div class="hint">Copre anche Ryanair/Wizz Air. La stima della quota consumata è mostrata nella sezione "Tratte monitorate" in cima alla pagina.</div>
-      </div>
-      <div class="field">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-          <input type="checkbox" id="includeBookingScheduled" style="width:auto;">
-          Includi Booking.com anche nella ricerca automatica
-        </label>
-        <div class="hint">Quota gratuita più generosa (500/mese) delle altre due fonti RapidAPI — più adatta all'uso automatico continuativo.</div>
       </div>
     </div>
   </section>
@@ -340,12 +330,12 @@ function minutesToHHMM(min){
   return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
 }
 
-function setupDualSlider(prefix){
-  const minInput = $(prefix + 'Min');
-  const maxInput = $(prefix + 'Max');
-  const fill = $(prefix + 'Fill');
-  const minLabel = $(prefix + 'MinLabel');
-  const maxLabel = $(prefix + 'MaxLabel');
+function setupDualSlider(root){
+  const minInput = root.querySelector('.dual-slider-min');
+  const maxInput = root.querySelector('.dual-slider-max');
+  const fill = root.querySelector('.dual-slider-fill');
+  const minLabel = root.querySelector('.dual-slider-min-label');
+  const maxLabel = root.querySelector('.dual-slider-max-label');
 
   function update(){
     let minVal = parseInt(minInput.value, 10);
@@ -378,8 +368,8 @@ function setupDualSlider(prefix){
   };
 }
 
-const departTimeSlider = setupDualSlider('departTime');
-const arriveTimeSlider = setupDualSlider('arriveTime');
+const departTimeSlider = setupDualSlider($('departTimeSliderBox'));
+const arriveTimeSlider = setupDualSlider($('arriveTimeSliderBox'));
 
 // ===== Tratte monitorate =====
 const WEEKDAY_LABELS = [
@@ -430,6 +420,51 @@ function createRouteCard(index){
       <label>Durata soggiorno (notti) — determina il ritorno abbinato a ogni data</label>
       <input type="number" class="route-nights" min="1" max="60" value="7">
     </div>
+    <div class="field">
+      <label>Orario di partenza andata</label>
+      <div class="route-depart-slider">
+        <div class="dual-slider">
+          <div class="dual-slider-track"></div>
+          <div class="dual-slider-fill"></div>
+          <input type="range" class="dual-slider-input dual-slider-min" min="0" max="1439" step="15" value="0">
+          <input type="range" class="dual-slider-input dual-slider-max" min="0" max="1439" step="15" value="1439">
+        </div>
+        <div class="dual-slider-labels">
+          <span class="mono dual-slider-min-label">00:00</span>
+          <span class="mono dual-slider-max-label">23:59</span>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Orario di partenza del ritorno</label>
+      <div class="route-arrive-slider">
+        <div class="dual-slider">
+          <div class="dual-slider-track"></div>
+          <div class="dual-slider-fill"></div>
+          <input type="range" class="dual-slider-input dual-slider-min" min="0" max="1439" step="15" value="0">
+          <input type="range" class="dual-slider-input dual-slider-max" min="0" max="1439" step="15" value="1439">
+        </div>
+        <div class="dual-slider-labels">
+          <span class="mono dual-slider-min-label">00:00</span>
+          <span class="mono dual-slider-max-label">23:59</span>
+        </div>
+      </div>
+      <div class="hint">Partenza = decollo dell'andata. Il secondo cursore = decollo del ritorno (o atterraggio, se "solo andata"). Filtro preciso solo su Duffel/Google Flights.</div>
+    </div>
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" class="route-includeGoogleFlights" style="width:auto;">
+        Includi Google Flights su questa tratta
+      </label>
+      <div class="hint">Copre anche Ryanair/Wizz Air. Quota gratuita limitata (150/mese) — la stima di consumo è mostrata più sotto.</div>
+    </div>
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" class="route-includeBooking" style="width:auto;">
+        Includi Booking.com su questa tratta
+      </label>
+      <div class="hint">Quota gratuita più generosa (500/mese) — più adatta all'uso automatico continuativo.</div>
+    </div>
     <button type="button" class="remove-route-btn">Rimuovi tratta</button>
   `;
 
@@ -439,8 +474,14 @@ function createRouteCard(index){
   onewayInput.addEventListener('change', () => { toggleNights(); updateRoutesQuotaEstimate(); });
   toggleNights();
 
+  div._departSlider = setupDualSlider(div.querySelector('.route-depart-slider'));
+  div._arriveSlider = setupDualSlider(div.querySelector('.route-arrive-slider'));
+
   div.querySelectorAll('.route-origin, .route-destination, .route-dateFrom, .route-dateTo, .route-nights').forEach(el => {
     el.addEventListener('input', updateRoutesQuotaEstimate);
+  });
+  div.querySelectorAll('.route-includeGoogleFlights, .route-includeBooking').forEach(el => {
+    el.addEventListener('change', updateRoutesQuotaEstimate);
   });
 
   const dateFromInput = div.querySelector('.route-dateFrom');
@@ -520,6 +561,12 @@ function collectRoutes(){
       weekdays,
       oneWay: card.querySelector('.route-oneway').checked,
       nights: parseInt(card.querySelector('.route-nights').value, 10) || 7,
+      includeGoogleFlights: card.querySelector('.route-includeGoogleFlights').checked,
+      includeBooking: card.querySelector('.route-includeBooking').checked,
+      departTimeFrom: card._departSlider.getRange().from,
+      departTimeTo: card._departSlider.getRange().to,
+      arriveTimeFrom: card._arriveSlider.getRange().from,
+      arriveTimeTo: card._arriveSlider.getRange().to,
     };
   });
 }
@@ -542,6 +589,10 @@ function fillRoutes(routes){
     card.querySelector('.route-oneway').checked = !!route.oneWay;
     card.querySelector('.route-nights').value = route.nights || 7;
     card.querySelector('.route-nights-field').style.display = route.oneWay ? 'none' : 'block';
+    card.querySelector('.route-includeGoogleFlights').checked = !!route.includeGoogleFlights;
+    card.querySelector('.route-includeBooking').checked = !!route.includeBooking;
+    card._departSlider.setRange(route.departTimeFrom, route.departTimeTo);
+    card._arriveSlider.setRange(route.arriveTimeFrom, route.arriveTimeTo);
   });
   updateAddRouteBtnState();
   updateRoutesQuotaEstimate();
@@ -552,6 +603,7 @@ function updateRoutesQuotaEstimate(){
   const attempts = parseInt($('attempts').value, 10) || 0;
   let totalCalls = 0;
   for (const r of routes){
+    if (!r.includeGoogleFlights) continue;
     const dateCount = countDatePairsClientSide(r.dateRangeFrom, r.dateRangeTo, r.weekdays);
     const pairCount = (r.originAirports.length || 0) * (r.destinationAirports.length || 0);
     totalCalls += dateCount * pairCount;
@@ -561,7 +613,9 @@ function updateRoutesQuotaEstimate(){
   if (!el) return;
   const over = monthlyEstimate > 150;
   el.style.color = over ? 'var(--red)' : '';
-  el.textContent = `Se includi Google Flights nello scheduler: stima ~${monthlyEstimate} richieste/mese (quota gratuita 150/mese)${over ? ' ⚠️ probabile superamento quota' : ''}`;
+  el.textContent = totalCalls === 0
+    ? 'Nessuna tratta ha Google Flights selezionato: nessun consumo di quota da questa fonte.'
+    : `Tratte con Google Flights attivo: stima ~${monthlyEstimate} richieste/mese (quota gratuita 150/mese)${over ? ' ⚠️ probabile superamento quota' : ''}`;
 }
 $('attempts').addEventListener('input', updateRoutesQuotaEstimate);
 
@@ -572,8 +626,6 @@ $('swapAirportsBtn').addEventListener('click', () => {
   updateQuotaEstimate();
 });
 
-$('includeGoogleFlightsScheduled').addEventListener('change', updateRoutesQuotaEstimate);
-$('includeBookingScheduled').addEventListener('change', updateRoutesQuotaEstimate);
 
 function applyOneWayToggle(){
   const oneWay = $('oneWay').checked;
@@ -647,10 +699,6 @@ function fillForm(c){
   $('attempts').value = c.attemptsPerDay || 4;
   $('startHour').value = c.startHour ?? 0;
   $('email').value = c.email || '';
-  departTimeSlider.setRange(c.departTimeFrom, c.departTimeTo);
-  arriveTimeSlider.setRange(c.arriveTimeFrom, c.arriveTimeTo);
-  $('includeGoogleFlightsScheduled').checked = !!c.includeGoogleFlightsScheduled;
-  $('includeBookingScheduled').checked = !!c.includeBookingScheduled;
   updateRoutesQuotaEstimate();
 }
 
@@ -804,18 +852,12 @@ $('configForm').addEventListener('submit', async (e) => {
 
   const payload = {
     routes,
-    departTimeFrom: departTimeSlider.getRange().from,
-    departTimeTo: departTimeSlider.getRange().to,
-    arriveTimeFrom: arriveTimeSlider.getRange().from,
-    arriveTimeTo: arriveTimeSlider.getRange().to,
     maxStopsOutbound: parseInt($('stopsOut').value, 10),
     maxStopsReturn: parseInt($('stopsRet').value, 10),
     attemptsPerDay: parseInt($('attempts').value, 10),
     startHour: parseInt($('startHour').value, 10),
     email: $('email').value,
     active: currentActive,
-    includeGoogleFlightsScheduled: $('includeGoogleFlightsScheduled').checked,
-    includeBookingScheduled: $('includeBookingScheduled').checked,
   };
 
   try{
