@@ -7,7 +7,7 @@ import { isDueNow } from "../../lib/scheduling.mjs";
 // il lavoro pesante con un budget di 15 minuti — molto più di quanto
 // serva anche con più tratte, più date e più fonti.
 export default async () => {
-  const configStore = getStore("flight-watch-config");
+  const configStore = getStore({ name: "flight-watch-config", consistency: "strong" });
 
   const config = await configStore.get("config", { type: "json" });
   if (!config) {

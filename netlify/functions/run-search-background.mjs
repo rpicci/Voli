@@ -32,7 +32,7 @@ async function withRetry(fn, retries = 1, delayMs = 1500) {
 }
 
 export default async () => {
-  const configStore = getStore("flight-watch-config");
+  const configStore = getStore({ name: "flight-watch-config", consistency: "strong" });
   const resultsStore = getStore("flight-watch-results");
   const historyStore = getStore("flight-watch-price-history");
 
