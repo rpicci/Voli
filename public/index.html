@@ -34,6 +34,12 @@
   .dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
   section{margin:28px 20px;}
   section h2{font-size:15px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:12px;font-weight:500;}
+  details{margin:28px 20px;}
+  details summary{font-size:15px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);font-weight:500;cursor:pointer;list-style:none;padding:2px 0;}
+  details summary::-webkit-details-marker{display:none;}
+  details summary::before{content:'▸ ';color:var(--cyan);}
+  details[open] summary::before{content:'▾ ';}
+  details section{margin-left:0;margin-right:0;}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;}
   .field{margin-bottom:16px;}
   .field:last-child{margin-bottom:0;}
@@ -156,107 +162,10 @@
 <form id="configForm">
   <section>
     <h2>Tratte monitorate (ricerca automatica)</h2>
-    <div class="hint" style="margin-bottom:14px;">Fino a 5 tratte, ciascuna con il proprio range di date, giorni della settimana e durata del soggiorno. Lo scheduler controlla tutte le combinazioni nell'unico slot giornaliero configurato più sotto.</div>
+    <div class="hint" style="margin-bottom:14px;">Fino a 5 tratte, ciascuna con il proprio range di date, giorni della settimana, durata del soggiorno, fasce orarie, scali e fonti extra. Lo scheduler controlla tutte le combinazioni nell'unico slot giornaliero configurato più sotto.</div>
     <div id="routesContainer"></div>
     <button type="button" id="addRouteBtn" class="btn-secondary">+ Aggiungi tratta</button>
     <div class="hint" id="routesQuotaEstimate" style="margin-top:10px;"></div>
-    <div style="height:14px;"></div>
-    <button type="submit" class="btn btn-primary">Salva configurazione</button>
-  </section>
-
-  <section>
-    <h2 style="color:var(--text-dim);">Test rapido on-demand (singola data)</h2>
-    <div class="hint" style="margin-bottom:14px;">Questi campi servono solo per il bottone "Cerca subito" più sotto — una verifica veloce su una data precisa, indipendente dalle tratte monitorate sopra.</div>
-  </section>
-
-  <section>
-    <h2>Aeroporti (test on-demand)</h2>
-    <div class="card">
-      <div class="field">
-        <label for="origin">Aeroporti di partenza (codici IATA, separati da virgola)</label>
-        <input type="text" id="origin" placeholder="MXP, LIN, BGY">
-      </div>
-      <div class="field" style="text-align:center;margin-bottom:8px;">
-        <button type="button" id="swapAirportsBtn" class="btn-secondary" style="width:auto;padding:8px 16px;border-radius:20px;border:1px solid var(--line);background:var(--panel-2);color:var(--cyan);font-family:'IBM Plex Mono',monospace;font-size:13px;cursor:pointer;">⇅ Inverti andata/ritorno</button>
-      </div>
-      <div class="field">
-        <label for="destination">Aeroporti di arrivo</label>
-        <input type="text" id="destination" placeholder="JFK, EWR">
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <h2>Date</h2>
-    <div class="card">
-      <div class="field">
-        <label for="departDate">Data di partenza</label>
-        <input type="date" id="departDate">
-      </div>
-      <div class="field">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-          <input type="checkbox" id="oneWay" style="width:auto;">
-          Solo andata (nessun volo di ritorno)
-        </label>
-      </div>
-      <div class="field" id="returnDateField">
-        <label for="returnDate">Data di rientro</label>
-        <input type="date" id="returnDate">
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <h2>Fasce orarie (test on-demand)</h2>
-    <div class="card">
-      <div class="field">
-        <label>Orario di partenza andata</label>
-        <div id="departTimeSliderBox">
-          <div class="dual-slider">
-            <div class="dual-slider-track"></div>
-            <div class="dual-slider-fill"></div>
-            <input type="range" class="dual-slider-input dual-slider-min" min="0" max="1439" step="15" value="0">
-            <input type="range" class="dual-slider-input dual-slider-max" min="0" max="1439" step="15" value="1439">
-          </div>
-          <div class="dual-slider-labels">
-            <span class="mono dual-slider-min-label">00:00</span>
-            <span class="mono dual-slider-max-label">23:59</span>
-          </div>
-        </div>
-      </div>
-      <div class="field">
-        <label>Orario di partenza del ritorno</label>
-        <div id="arriveTimeSliderBox">
-          <div class="dual-slider">
-            <div class="dual-slider-track"></div>
-            <div class="dual-slider-fill"></div>
-            <input type="range" class="dual-slider-input dual-slider-min" min="0" max="1439" step="15" value="0">
-            <input type="range" class="dual-slider-input dual-slider-max" min="0" max="1439" step="15" value="1439">
-          </div>
-          <div class="dual-slider-labels">
-            <span class="mono dual-slider-min-label">00:00</span>
-            <span class="mono dual-slider-max-label">23:59</span>
-          </div>
-        </div>
-        <div class="hint">Partenza = decollo dell'andata. Il secondo cursore = decollo del ritorno — oppure, se "solo andata", atterraggio dell'unica tratta. Filtro preciso solo su risultati Duffel/Google Flights; su Travelpayouts viene ignorato (l'API non fornisce l'orario, solo la data). Questa fascia oraria vale solo per il test "Cerca subito" — le tratte monitorate hanno ciascuna la propria, impostabile nella relativa card più sopra.</div>
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <h2>Scali</h2>
-    <div class="card">
-      <div class="row2">
-        <div class="field">
-          <label for="stopsOut">Scali massimi andata</label>
-          <input type="number" id="stopsOut" min="0" max="3" value="0">
-        </div>
-        <div class="field">
-          <label for="stopsRet">Scali massimi ritorno</label>
-          <input type="number" id="stopsRet" min="0" max="3" value="0">
-        </div>
-      </div>
-    </div>
   </section>
 
   <section>
@@ -278,18 +187,117 @@
     </div>
   </section>
 
-  <section>
-    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;">
-      <input type="checkbox" id="includeGoogleFlights" style="width:auto;">
-      Includi anche Google Flights (copre Ryanair/Wizz Air, quota gratuita limitata a 150/mese)
-    </label>
-    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;">
-      <input type="checkbox" id="includeBooking" style="width:auto;">
-      Includi anche Booking.com (quota gratuita 500/mese)
-    </label>
-    <button type="button" id="searchNowBtn" class="btn btn-secondary">Cerca subito</button>
-    <div class="hint">Usa i valori attuali del form, senza aspettare il prossimo slot programmato. Non modifica la configurazione salvata né lo scheduler automatico.</div>
-  </section>
+  <div style="height:6px;"></div>
+  <button type="submit" class="btn btn-primary">Salva configurazione</button>
+  <div style="height:22px;"></div>
+
+  <details id="onDemandDetails">
+    <summary>Test rapido on-demand (singola data)</summary>
+    <div class="hint" style="margin:10px 0 14px;">Questi campi servono solo per il bottone "Cerca subito" più sotto — una verifica veloce su una data precisa, indipendente dalle tratte monitorate sopra. Non modifica la configurazione salvata né lo scheduler automatico.</div>
+
+    <section>
+      <h2>Aeroporti</h2>
+      <div class="card">
+        <div class="field">
+          <label for="origin">Aeroporti di partenza (codici IATA, separati da virgola)</label>
+          <input type="text" id="origin" placeholder="MXP, LIN, BGY">
+        </div>
+        <div class="field" style="text-align:center;margin-bottom:8px;">
+          <button type="button" id="swapAirportsBtn" class="btn-secondary" style="width:auto;padding:8px 16px;border-radius:20px;border:1px solid var(--line);background:var(--panel-2);color:var(--cyan);font-family:'IBM Plex Mono',monospace;font-size:13px;cursor:pointer;">⇅ Inverti andata/ritorno</button>
+        </div>
+        <div class="field">
+          <label for="destination">Aeroporti di arrivo</label>
+          <input type="text" id="destination" placeholder="JFK, EWR">
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Date</h2>
+      <div class="card">
+        <div class="field">
+          <label for="departDate">Data di partenza</label>
+          <input type="date" id="departDate">
+        </div>
+        <div class="field">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="oneWay" style="width:auto;">
+            Solo andata (nessun volo di ritorno)
+          </label>
+        </div>
+        <div class="field" id="returnDateField">
+          <label for="returnDate">Data di rientro</label>
+          <input type="date" id="returnDate">
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Fasce orarie</h2>
+      <div class="card">
+        <div class="field">
+          <label>Orario di partenza andata</label>
+          <div id="departTimeSliderBox">
+            <div class="dual-slider">
+              <div class="dual-slider-track"></div>
+              <div class="dual-slider-fill"></div>
+              <input type="range" class="dual-slider-input dual-slider-min" min="0" max="1439" step="15" value="0">
+              <input type="range" class="dual-slider-input dual-slider-max" min="0" max="1439" step="15" value="1439">
+            </div>
+            <div class="dual-slider-labels">
+              <span class="mono dual-slider-min-label">00:00</span>
+              <span class="mono dual-slider-max-label">23:59</span>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Orario di partenza del ritorno</label>
+          <div id="arriveTimeSliderBox">
+            <div class="dual-slider">
+              <div class="dual-slider-track"></div>
+              <div class="dual-slider-fill"></div>
+              <input type="range" class="dual-slider-input dual-slider-min" min="0" max="1439" step="15" value="0">
+              <input type="range" class="dual-slider-input dual-slider-max" min="0" max="1439" step="15" value="1439">
+            </div>
+            <div class="dual-slider-labels">
+              <span class="mono dual-slider-min-label">00:00</span>
+              <span class="mono dual-slider-max-label">23:59</span>
+            </div>
+          </div>
+          <div class="hint">Partenza = decollo dell'andata. Il secondo cursore = decollo del ritorno — oppure, se "solo andata", atterraggio dell'unica tratta. Filtro preciso solo su risultati Duffel/Google Flights; su Travelpayouts viene ignorato (l'API non fornisce l'orario, solo la data).</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Scali</h2>
+      <div class="card">
+        <div class="row2">
+          <div class="field">
+            <label for="stopsOut">Scali massimi andata</label>
+            <input type="number" id="stopsOut" min="0" max="3" value="0">
+          </div>
+          <div class="field">
+            <label for="stopsRet">Scali massimi ritorno</label>
+            <input type="number" id="stopsRet" min="0" max="3" value="0">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;">
+        <input type="checkbox" id="includeGoogleFlights" style="width:auto;">
+        Includi anche Google Flights (copre Ryanair/Wizz Air, quota gratuita limitata a 150/mese)
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;">
+        <input type="checkbox" id="includeBooking" style="width:auto;">
+        Includi anche Booking.com (quota gratuita 500/mese)
+      </label>
+      <button type="button" id="searchNowBtn" class="btn btn-secondary">Cerca subito</button>
+      <div class="hint">Usa i valori attuali del form, senza aspettare il prossimo slot programmato.</div>
+    </section>
+  </details>
 </form>
 
 <section id="resultsSection" style="display:none;">
@@ -452,6 +460,18 @@ function createRouteCard(index){
       <div class="hint">Partenza = decollo dell'andata. Il secondo cursore = decollo del ritorno (o atterraggio, se "solo andata"). Filtro preciso solo su Duffel/Google Flights.</div>
     </div>
     <div class="field">
+      <div class="row2">
+        <div class="field">
+          <label>Scali massimi andata</label>
+          <input type="number" class="route-stopsOut" min="0" max="3" value="0">
+        </div>
+        <div class="field">
+          <label>Scali massimi ritorno</label>
+          <input type="number" class="route-stopsRet" min="0" max="3" value="0">
+        </div>
+      </div>
+    </div>
+    <div class="field">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
         <input type="checkbox" class="route-includeGoogleFlights" style="width:auto;">
         Includi Google Flights su questa tratta
@@ -563,6 +583,8 @@ function collectRoutes(){
       nights: parseInt(card.querySelector('.route-nights').value, 10) || 7,
       includeGoogleFlights: card.querySelector('.route-includeGoogleFlights').checked,
       includeBooking: card.querySelector('.route-includeBooking').checked,
+      maxStopsOutbound: parseInt(card.querySelector('.route-stopsOut').value, 10) || 0,
+      maxStopsReturn: parseInt(card.querySelector('.route-stopsRet').value, 10) || 0,
       departTimeFrom: card._departSlider.getRange().from,
       departTimeTo: card._departSlider.getRange().to,
       arriveTimeFrom: card._arriveSlider.getRange().from,
@@ -591,6 +613,8 @@ function fillRoutes(routes){
     card.querySelector('.route-nights-field').style.display = route.oneWay ? 'none' : 'block';
     card.querySelector('.route-includeGoogleFlights').checked = !!route.includeGoogleFlights;
     card.querySelector('.route-includeBooking').checked = !!route.includeBooking;
+    card.querySelector('.route-stopsOut').value = route.maxStopsOutbound ?? 0;
+    card.querySelector('.route-stopsRet').value = route.maxStopsReturn ?? 0;
     card._departSlider.setRange(route.departTimeFrom, route.departTimeTo);
     card._arriveSlider.setRange(route.arriveTimeFrom, route.arriveTimeTo);
   });
@@ -694,8 +718,6 @@ function renderStatus(config, lastRun){
 function fillForm(c){
   if (!c) return;
   fillRoutes(c.routes);
-  $('stopsOut').value = c.maxStopsOutbound ?? 0;
-  $('stopsRet').value = c.maxStopsReturn ?? 0;
   $('attempts').value = c.attemptsPerDay || 4;
   $('startHour').value = c.startHour ?? 0;
   $('email').value = c.email || '';
@@ -852,8 +874,6 @@ $('configForm').addEventListener('submit', async (e) => {
 
   const payload = {
     routes,
-    maxStopsOutbound: parseInt($('stopsOut').value, 10),
-    maxStopsReturn: parseInt($('stopsRet').value, 10),
     attemptsPerDay: parseInt($('attempts').value, 10),
     startHour: parseInt($('startHour').value, 10),
     email: $('email').value,
