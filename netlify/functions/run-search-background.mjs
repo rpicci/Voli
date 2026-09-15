@@ -8,6 +8,7 @@ import { searchBookingFlights } from "../../lib/booking.mjs";
 import { getEurRates } from "../../lib/exchangeRates.mjs";
 import { sendResultsEmail, sendStatusEmail } from "../../lib/email.mjs";
 import { getPreviousPrice, savePrice } from "../../lib/priceHistory.mjs";
+import { sendPushNotification } from "../../lib/webPush.mjs";
 
 // Funzione BACKGROUND (fino a 15 minuti di esecuzione, contro i 30 secondi
 // delle funzioni schedulate). Fa tutto il lavoro pesante: viene attivata da
@@ -245,14 +246,15 @@ export default async () => {
 
   allResults.sort((a, b) => a.price - b.price);
 
+  const routeLabels = routes
+    .map((r) => `${r.originAirports.join("/")} → ${r.destinationAirports.join("/")}`)
+    .join(" · ");
+
   let emailError = null;
 
   if (RESEND_API_KEY && EMAIL_FROM && storedConfig.email) {
     try {
       if (allResults.length > 0) {
-        const routeLabels = routes
-          .map((r) => `${r.originAirports.join("/")} → ${r.destinationAirports.join("/")}`)
-          .join(" · ");
         await sendResultsEmail({
           apiKey: RESEND_API_KEY,
           from: EMAIL_FROM,
@@ -275,11 +277,42 @@ export default async () => {
     }
   }
 
+  // Salviamo sempre l'ultimo batch di risultati completo (indipendentemente
+  // dall'email), così la PWA può mostrarlo per intero quando l'utente apre
+  // l'app dopo aver ricevuto la notifica push — che può contenere solo un
+  // riassunto breve, non l'elenco completo con link e storico prezzi.
+  if (allResults.length > 0) {
+    await resultsStore.setJSON("last-scheduled-results", {
+      generatedAt: new Date().toISOString(),
+      searchLabel: routeLabels,
+      results: allResults,
+      errors,
+    });
+  }
+
+  const pushSubscriptionStore = getStore({ name: "flight-watch-push-subscription", consistency: "strong" });
+  let pushResult = { sent: false, reason: "Nessun risultato da notificare" };
+  if (allResults.length > 0) {
+    const cheapest = allResults[0];
+    pushResult = await sendPushNotification(pushSubscriptionStore, {
+      title: `✈️ Flight Watch: ${allResults.length} vol${allResults.length === 1 ? "o" : "i"} trovat${allResults.length === 1 ? "o" : "i"}`,
+      body: `Il più economico: ${cheapest.price} ${cheapest.currency} (${cheapest.origin} → ${cheapest.destination})`,
+      url: "/",
+    });
+  } else if (errors.length > 0) {
+    pushResult = await sendPushNotification(pushSubscriptionStore, {
+      title: "⚠️ Flight Watch — errore nella ricerca",
+      body: `La ricerca di oggi ha incontrato ${errors.length} errore/i.`,
+      url: "/",
+    });
+  }
+
   await resultsStore.setJSON("last-run", {
     ranAt: new Date().toISOString(),
     slotKey: currentSlotKey,
     resultsCount: allResults.length,
     errors,
     emailError,
+    pushResult,
   });
 };
