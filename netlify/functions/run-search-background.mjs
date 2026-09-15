@@ -6,7 +6,6 @@ import { searchGoogleFlights } from "../../lib/googleflights.mjs";
 import { searchSkyscannerFlights } from "../../lib/skyscanner.mjs";
 import { searchBookingFlights } from "../../lib/booking.mjs";
 import { getEurRates } from "../../lib/exchangeRates.mjs";
-import { sendResultsEmail, sendStatusEmail } from "../../lib/email.mjs";
 import { getPreviousPrice, savePrice } from "../../lib/priceHistory.mjs";
 import { sendPushNotification } from "../../lib/webPush.mjs";
 
@@ -113,8 +112,6 @@ export default async () => {
   const TRAVELPAYOUTS_TOKEN = process.env.TRAVELPAYOUTS_TOKEN;
   const DUFFEL_API_KEY = process.env.DUFFEL_API_KEY;
   const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
-  const RESEND_API_KEY = process.env.RESEND_API_KEY;
-  const EMAIL_FROM = process.env.EMAIL_FROM;
   const useSkyscanner = false; // box rimosso dal form, fonte non più esposta all'utente
   const skyscannerCache = new Map();
 
@@ -306,32 +303,9 @@ export default async () => {
     .map((r) => `${r.originAirports.join("/")} → ${r.destinationAirports.join("/")}`)
     .join(" · ");
 
-  let emailError = null;
-
-  if (RESEND_API_KEY && EMAIL_FROM && storedConfig.email) {
-    try {
-      if (allResults.length > 0) {
-        await sendResultsEmail({
-          apiKey: RESEND_API_KEY,
-          from: EMAIL_FROM,
-          to: storedConfig.email,
-          results: allResults,
-          searchLabel: routeLabels,
-          errors,
-        });
-      } else if (errors.length > 0) {
-        await sendStatusEmail({
-          apiKey: RESEND_API_KEY,
-          from: EMAIL_FROM,
-          to: storedConfig.email,
-          subject: "⚠️ Flight Watch — errore nella ricerca",
-          message: `La ricerca di oggi ha incontrato errori: ${errors.join("; ")}`,
-        });
-      }
-    } catch (err) {
-      emailError = err.message;
-    }
-  }
+  // Invio email disattivato: le notifiche push (con riepilogo per tratta,
+  // variazione e data) sostituiscono l'email come canale principale.
+  // routeLabels resta usato solo per etichettare i risultati salvati.
 
   // Salviamo sempre l'ultimo batch di risultati completo (indipendentemente
   // dall'email), così la PWA può mostrarlo per intero quando l'utente apre
@@ -371,7 +345,6 @@ export default async () => {
     slotKey: currentSlotKey,
     resultsCount: allResults.length,
     errors,
-    emailError,
     pushResult,
   });
 };
