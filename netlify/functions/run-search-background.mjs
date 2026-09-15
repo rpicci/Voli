@@ -36,6 +36,17 @@ async function withRetry(fn, retries = 1, delayMs = 1500) {
 // individua il prezzo più basso trovato in questa esecuzione, insieme
 // all'eventuale variazione rispetto all'ultima esecuzione schedulata
 // (già calcolata più sopra e attaccata al singolo risultato).
+// Formato compatto gg/mm per stare dentro lo spazio ristretto di una
+// notifica push. Se il formato della data non è quello atteso (YYYY-MM-DD)
+// restituiamo la stringa originale invece di rischiare di troncarla male.
+function formatDateShort(dateStr) {
+  if (!dateStr) return "";
+  const parts = dateStr.split("-");
+  if (parts.length !== 3) return dateStr;
+  const [, month, day] = parts;
+  return `${day}/${month}`;
+}
+
 function buildRouteSummaries(routes, allResults) {
   return routes
     .map((route, idx) => {
@@ -48,6 +59,8 @@ function buildRouteSummaries(routes, allResults) {
         currency: cheapest.currency,
         delta: cheapest.priceChangeVsLastRun,
         isNewRecordLow: cheapest.isNewRecordLow,
+        departDate: cheapest.departDate,
+        returnDate: cheapest.returnDate,
       };
     })
     .filter(Boolean);
@@ -66,7 +79,8 @@ function formatRouteLine(summary) {
     else if (summary.delta > 0) variation = ` (↑${summary.delta}€)`;
     else variation = " (=)";
   }
-  return `${summary.label}: ${priceStr}${variation}`;
+  const dateStr = formatDateShort(summary.departDate) + (summary.returnDate ? `–${formatDateShort(summary.returnDate)}` : "");
+  return `${summary.label} ${dateStr}: ${priceStr}${variation}`;
 }
 
 export default async () => {
@@ -255,6 +269,8 @@ export default async () => {
           const comboAll = allResults.slice(countBefore);
           comboAll.forEach((r) => {
             r.routeIndex = routeIdx;
+            r.departDate = departDate;
+            r.returnDate = returnDate;
           });
 
           const comboResults = comboAll.filter((r) => r.currency === "EUR" && !r.conversionFailed);
