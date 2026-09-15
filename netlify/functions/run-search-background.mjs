@@ -32,6 +32,43 @@ async function withRetry(fn, retries = 1, delayMs = 1500) {
   }
 }
 
+// Per ogni tratta monitorata (non per singola combinazione aeroporto/data)
+// individua il prezzo più basso trovato in questa esecuzione, insieme
+// all'eventuale variazione rispetto all'ultima esecuzione schedulata
+// (già calcolata più sopra e attaccata al singolo risultato).
+function buildRouteSummaries(routes, allResults) {
+  return routes
+    .map((route, idx) => {
+      const routeResults = allResults.filter((r) => r.routeIndex === idx);
+      if (routeResults.length === 0) return null;
+      const cheapest = routeResults.reduce((min, r) => (r.price < min.price ? r : min), routeResults[0]);
+      return {
+        label: `${route.originAirports.join("/")} → ${route.destinationAirports.join("/")}`,
+        price: cheapest.price,
+        currency: cheapest.currency,
+        delta: cheapest.priceChangeVsLastRun,
+        isNewRecordLow: cheapest.isNewRecordLow,
+      };
+    })
+    .filter(Boolean);
+}
+
+// Una riga per tratta: prezzo migliore + variazione se disponibile.
+// "Nuovo minimo" ha priorità sulla variazione numerica perché è
+// l'informazione più utile in assoluto quando capita.
+function formatRouteLine(summary) {
+  const priceStr = summary.currency === "EUR" ? `${summary.price}€` : `${summary.price} ${summary.currency}`;
+  let variation = "";
+  if (summary.isNewRecordLow) {
+    variation = " — nuovo minimo!";
+  } else if (typeof summary.delta === "number") {
+    if (summary.delta < 0) variation = ` (↓${Math.abs(summary.delta)}€)`;
+    else if (summary.delta > 0) variation = ` (↑${summary.delta}€)`;
+    else variation = " (=)";
+  }
+  return `${summary.label}: ${priceStr}${variation}`;
+}
+
 export default async () => {
   const configStore = getStore({ name: "flight-watch-config", consistency: "strong" });
   const resultsStore = getStore("flight-watch-results");
@@ -85,7 +122,7 @@ export default async () => {
     }
   }
 
-  for (const route of routes) {
+  for (const [routeIdx, route] of routes.entries()) {
     const useGoogleFlights = !!route.includeGoogleFlights && !!RAPIDAPI_KEY;
     const useBooking = !!route.includeBooking && !!RAPIDAPI_KEY;
     const datePairs = generateDatePairs(route);
@@ -215,9 +252,12 @@ export default async () => {
           // (non quelli con conversione fallita) entrano nel confronto,
           // altrimenti un cambio di valuta sembrerebbe un'oscillazione
           // di prezzo.
-          const comboResults = allResults
-            .slice(countBefore)
-            .filter((r) => r.currency === "EUR" && !r.conversionFailed);
+          const comboAll = allResults.slice(countBefore);
+          comboAll.forEach((r) => {
+            r.routeIndex = routeIdx;
+          });
+
+          const comboResults = comboAll.filter((r) => r.currency === "EUR" && !r.conversionFailed);
 
           if (comboResults.length > 0) {
             const cheapestNow = Math.min(...comboResults.map((r) => r.price));
@@ -293,10 +333,13 @@ export default async () => {
   const pushSubscriptionStore = getStore({ name: "flight-watch-push-subscription", consistency: "strong" });
   let pushResult = { sent: false, reason: "Nessun risultato da notificare" };
   if (allResults.length > 0) {
-    const cheapest = allResults[0];
+    const routeSummaries = buildRouteSummaries(routes, allResults);
+    const body = routeSummaries.length > 0
+      ? routeSummaries.map(formatRouteLine).join("\n")
+      : `Il più economico: ${allResults[0].price} ${allResults[0].currency} (${allResults[0].origin} → ${allResults[0].destination})`;
     pushResult = await sendPushNotification(pushSubscriptionStore, {
-      title: `✈️ Flight Watch: ${allResults.length} vol${allResults.length === 1 ? "o" : "i"} trovat${allResults.length === 1 ? "o" : "i"}`,
-      body: `Il più economico: ${cheapest.price} ${cheapest.currency} (${cheapest.origin} → ${cheapest.destination})`,
+      title: `✈️ Flight Watch — ${routeSummaries.length || 1} tratt${(routeSummaries.length || 1) === 1 ? "a" : "e"} aggiornat${(routeSummaries.length || 1) === 1 ? "a" : "e"}`,
+      body,
       url: "/",
     });
   } else if (errors.length > 0) {
