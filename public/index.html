@@ -157,7 +157,22 @@
     <span class="board-label" style="color:var(--red);">⚠️ Invio email fallito</span>
     <span class="board-value mono" id="emailErrorValue" style="color:var(--red);">—</span>
   </div>
+  <div class="board-row" id="pushErrorRow" style="display:none;">
+    <span class="board-label" style="color:var(--red);">⚠️ Notifica push non inviata</span>
+    <span class="board-value mono" id="pushErrorValue" style="color:var(--red);">—</span>
+  </div>
 </div>
+
+<div class="card" style="margin:16px 20px;">
+  <button type="button" id="pushToggleBtn" class="btn btn-secondary">Attiva notifiche push</button>
+  <div class="hint" id="pushStatusHint" style="margin-top:8px;">Ricevi un avviso sul telefono quando la ricerca automatica trova voli, anche ad app chiusa. Un solo dispositivo alla volta: attivarle su un nuovo dispositivo disattiva le precedenti.</div>
+</div>
+
+<section id="lastScheduledResultsSection" style="display:none;">
+  <h2>Ultimi risultati (ricerca automatica)</h2>
+  <div id="lastScheduledResultsMeta" class="hint" style="margin-bottom:12px;"></div>
+  <div id="lastScheduledResultsList"></div>
+</section>
 
 <form id="configForm">
   <section>
@@ -712,6 +727,14 @@ function renderStatus(config, lastRun){
     } else {
       errorRow.style.display = 'none';
     }
+
+    const pushErrorRow = $('pushErrorRow');
+    if (lastRun.pushResult && !lastRun.pushResult.sent && lastRun.pushResult.reason !== 'Nessun risultato da notificare' && lastRun.pushResult.reason !== 'Nessuna sottoscrizione'){
+      pushErrorRow.style.display = 'flex';
+      $('pushErrorValue').textContent = lastRun.pushResult.reason;
+    } else {
+      pushErrorRow.style.display = 'none';
+    }
   }
 }
 
@@ -753,6 +776,24 @@ function collectCurrentParams(){
   };
 }
 
+function buildResultCardHTML(r){
+  return `
+      <div>
+        <div class="result-route">${r.origin} → ${r.destination}</div>
+        <div class="result-meta mono">Andata: ${r.departDate}${r.departTime ? ' ' + r.departTime : ''}${r.arriveTime ? ' → ' + r.arriveTime : ''} · ${r.stops ?? '?'} scali${r.airline ? ' · ' + r.airline : ''}${r.flightNumber ? ' ' + r.flightNumber : ''}</div>
+        ${r.returnDate ? `<div class="result-meta mono">Ritorno: ${r.returnDate}${r.returnDepartTime ? ' ' + r.returnDepartTime : ''}${r.returnArriveTime ? ' → arrivo ' + r.returnArriveTime : ''}${r.returnStops != null ? ' · ' + r.returnStops + ' scali' : ''}${r.returnAirline ? ' · ' + r.returnAirline : ''}${r.returnFlightNumber ? ' ' + r.returnFlightNumber : ''}</div>` : ''}
+        <div class="result-meta mono">${r.source}</div>
+        ${r.note ? `<div class="result-note">⚠️ ${r.note}</div>` : ''}
+        ${r.bookingUrl ? `<a class="result-link" href="${r.bookingUrl}" target="_blank" rel="noopener">Vedi prenotazione →</a>` : ''}
+      </div>
+      <div>
+        <div class="result-price">${r.price} ${r.currency}</div>
+        ${r.originalPrice != null ? `<div class="result-original-price mono">${r.originalPrice} ${r.originalCurrency}</div>` : ''}
+        ${r.conversionFailed ? `<div class="result-original-price mono" style="color:var(--red);">⚠️ non convertito</div>` : ''}
+      </div>
+    `;
+}
+
 function renderResults(results, errors, criteria){
   const section = $('resultsSection');
   const meta = $('resultsMeta');
@@ -790,22 +831,112 @@ function renderResults(results, errors, criteria){
   for (const r of results){
     const div = document.createElement('div');
     div.className = 'result-card';
-    div.innerHTML = `
-      <div>
-        <div class="result-route">${r.origin} → ${r.destination}</div>
-        <div class="result-meta mono">Andata: ${r.departDate}${r.departTime ? ' ' + r.departTime : ''}${r.arriveTime ? ' → ' + r.arriveTime : ''} · ${r.stops ?? '?'} scali${r.airline ? ' · ' + r.airline : ''}${r.flightNumber ? ' ' + r.flightNumber : ''}</div>
-        ${r.returnDate ? `<div class="result-meta mono">Ritorno: ${r.returnDate}${r.returnDepartTime ? ' ' + r.returnDepartTime : ''}${r.returnArriveTime ? ' → arrivo ' + r.returnArriveTime : ''}${r.returnStops != null ? ' · ' + r.returnStops + ' scali' : ''}${r.returnAirline ? ' · ' + r.returnAirline : ''}${r.returnFlightNumber ? ' ' + r.returnFlightNumber : ''}</div>` : ''}
-        <div class="result-meta mono">${r.source}</div>
-        ${r.note ? `<div class="result-note">⚠️ ${r.note}</div>` : ''}
-        ${r.bookingUrl ? `<a class="result-link" href="${r.bookingUrl}" target="_blank" rel="noopener">Vedi prenotazione →</a>` : ''}
-      </div>
-      <div>
-        <div class="result-price">${r.price} ${r.currency}</div>
-        ${r.originalPrice != null ? `<div class="result-original-price mono">${r.originalPrice} ${r.originalCurrency}</div>` : ''}
-        ${r.conversionFailed ? `<div class="result-original-price mono" style="color:var(--red);">⚠️ non convertito</div>` : ''}
-      </div>
-    `;
+    div.innerHTML = buildResultCardHTML(r);
     list.appendChild(div);
+  }
+}
+
+function renderLastScheduledResults(lastResults){
+  const section = $('lastScheduledResultsSection');
+  const meta = $('lastScheduledResultsMeta');
+  const list = $('lastScheduledResultsList');
+
+  if (!lastResults || !lastResults.results || lastResults.results.length === 0){
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'block';
+  const d = new Date(lastResults.generatedAt);
+  meta.textContent = `${lastResults.searchLabel} — ${lastResults.results.length} voli trovati il ${d.toLocaleString('it-IT', { dateStyle:'short', timeStyle:'short' })}` +
+    (lastResults.errors && lastResults.errors.length ? ` — ⚠️ ${lastResults.errors.length} errore/i durante la ricerca` : '');
+
+  list.innerHTML = '';
+  for (const r of lastResults.results){
+    const div = document.createElement('div');
+    div.className = 'result-card';
+    div.innerHTML = buildResultCardHTML(r);
+    list.appendChild(div);
+  }
+}
+
+// --- Notifiche push ---
+
+const VAPID_PUBLIC_KEY = 'BFZZmxEq9I9olsi7Z3HQ3yqszVsd4HM_IQmr32rwY1wCuO6W-jszK79K7ZnG46TbQAlZHZoel65z2Sf3H4EBH8E';
+
+function urlBase64ToUint8Array(base64String){
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+async function updatePushButtonState(){
+  const btn = $('pushToggleBtn');
+  const hint = $('pushStatusHint');
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)){
+    btn.disabled = true;
+    hint.textContent = 'Le notifiche push non sono supportate su questo browser.';
+    return;
+  }
+  const registration = await navigator.serviceWorker.ready;
+  const subscription = await registration.pushManager.getSubscription();
+  if (subscription){
+    btn.textContent = 'Disattiva notifiche push';
+    hint.textContent = 'Notifiche push attive su questo dispositivo.';
+  } else {
+    btn.textContent = 'Attiva notifiche push';
+    hint.textContent = 'Ricevi un avviso sul telefono quando la ricerca automatica trova voli, anche ad app chiusa. Un solo dispositivo alla volta: attivarle su un nuovo dispositivo disattiva le precedenti.';
+  }
+}
+
+$('pushToggleBtn').addEventListener('click', async () => {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)){
+    showToast('Le notifiche push non sono supportate su questo browser.');
+    return;
+  }
+  const btn = $('pushToggleBtn');
+  btn.disabled = true;
+  try{
+    const registration = await navigator.serviceWorker.ready;
+    const existing = await registration.pushManager.getSubscription();
+
+    if (existing){
+      await existing.unsubscribe();
+      await fetch('/.netlify/functions/delete-push-subscription', { method: 'POST' });
+      showToast('Notifiche push disattivate.');
+    } else {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted'){
+        showToast('Permesso notifiche negato.');
+        return;
+      }
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+      await fetch('/.netlify/functions/save-push-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(subscription),
+      });
+      showToast('Notifiche push attivate su questo dispositivo.');
+    }
+  } catch(e){
+    showToast('Errore nella gestione delle notifiche push.');
+  } finally {
+    btn.disabled = false;
+    updatePushButtonState();
+  }
+});
+
+async function loadLastScheduledResults(){
+  try{
+    const res = await fetch('/.netlify/functions/get-last-results', { cache: 'no-store' });
+    const { lastResults } = await res.json();
+    renderLastScheduledResults(lastResults);
+  } catch(e){
+    // Non bloccante: se fallisce, semplicemente non mostriamo la sezione.
   }
 }
 
@@ -925,13 +1056,19 @@ $('killBtn').addEventListener('click', async () => {
 });
 
 if ('serviceWorker' in navigator){
-  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').then(() => updatePushButtonState());
+  });
+} else {
+  $('pushToggleBtn').disabled = true;
+  $('pushStatusHint').textContent = 'Le notifiche push non sono supportate su questo browser.';
 }
 
 if ($('routesContainer').children.length === 0){
   fillRoutes([]);
 }
 loadConfig();
+loadLastScheduledResults();
 </script>
 </body>
 </html>
