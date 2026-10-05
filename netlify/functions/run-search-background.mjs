@@ -6,7 +6,7 @@ import { searchGoogleFlights } from "../../lib/googleflights.mjs";
 import { searchSkyscannerFlights } from "../../lib/skyscanner.mjs";
 import { searchBookingFlights } from "../../lib/booking.mjs";
 import { getEurRates } from "../../lib/exchangeRates.mjs";
-import { getPreviousPrice, savePrice } from "../../lib/priceHistory.mjs";
+import { getPreviousPrice, savePrice, appendRouteTrend } from "../../lib/priceHistory.mjs";
 import { sendPushNotification } from "../../lib/webPush.mjs";
 
 // Funzione BACKGROUND (fino a 15 minuti di esecuzione, contro i 30 secondi
@@ -86,6 +86,7 @@ export default async () => {
   const configStore = getStore({ name: "flight-watch-config", consistency: "strong" });
   const resultsStore = getStore("flight-watch-results");
   const historyStore = getStore("flight-watch-price-history");
+  const trendStore = getStore("flight-watch-route-trend");
 
   const storedConfig = await configStore.get("config", { type: "json" });
   if (!storedConfig) return new Response("Nessuna configurazione", { status: 200 });
@@ -324,6 +325,15 @@ export default async () => {
   let pushResult = { sent: false, reason: "Nessun risultato da notificare" };
   if (allResults.length > 0) {
     const routeSummaries = buildRouteSummaries(routes, allResults);
+
+    try {
+      await Promise.all(
+        routeSummaries.map((s) => appendRouteTrend(trendStore, s.label, s.price, s.currency))
+      );
+    } catch (err) {
+      console.log(`[route-trend] Errore salvataggio storico aggregato: ${err.message}`);
+    }
+
     const body = routeSummaries.length > 0
       ? routeSummaries.map(formatRouteLine).join("\n")
       : `Il più economico: ${allResults[0].price} ${allResults[0].currency} (${allResults[0].origin} → ${allResults[0].destination})`;
